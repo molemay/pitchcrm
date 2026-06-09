@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PitchCRM — Sales Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+<script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+<style>
+:root{
+  --bg:#F4F3EF;--surface:#FFF;--surface2:#EFEDE7;--surface3:#E8E6DF;
+  --border:#E0DDD4;--border2:#C8C5B8;
+  --text:#18170F;--text2:#65635A;--text3:#9B9890;
+  --blue:#1A5FAA;--blue-bg:#E8F0FB;--blue-mid:#5490CF;
+  --green:#27663B;--green-bg:#E8F4EC;
+  --amber:#8A5810;--amber-bg:#FDF2DE;
+  --red:#982929;--red-bg:#FDEAEA;
+  --purple:#54389E;--purple-bg:#F0EBFB;
+  --r:10px;--rlg:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;line-height:1.5}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:214px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.logo-wrap{padding:18px 16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.logo-icon{width:30px;height:30px;background:var(--text);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;flex-shrink:0}
+.logo-name{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.logo-sub{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace}
+.nav{padding:10px 8px;flex:1}
+.nav-sect{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:8px 8px 4px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;margin-bottom:1px;transition:all .12s;user-select:none}
+.nav-item i{font-size:16px;opacity:.65;flex-shrink:0}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--text);color:#fff}
+.nav-item.active i{opacity:1}
+.sidebar-foot{padding:12px 8px;border-top:1px solid var(--border)}
+.user-row{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--blue-bg);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--blue);flex-shrink:0}
+.u-name{font-size:12px;font-weight:600}
+.u-role{font-size:10px;color:var(--text3)}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{padding:14px 24px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0}
+.topbar-left .page-title{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.topbar-left .page-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.topbar-right{display:flex;gap:7px;align-items:center}
+.content{flex:1;overflow-y:auto;padding:22px 24px}
+.panel{display:none}.panel.active{display:block}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;font-size:12px;font-weight:500;border-radius:8px;cursor:pointer;border:1px solid var(--border2);background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;transition:all .12s;white-space:nowrap}
+.btn i{font-size:14px}
+.btn:hover{background:var(--surface2)}
+.btn.primary{background:var(--text);color:#fff;border-color:var(--text)}
+.btn.primary:hover{opacity:.86}
+.btn.sm{padding:5px 10px;font-size:11px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-bottom:20px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);padding:13px 15px}
+.stat .s-lbl{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;display:flex;align-items:center;gap:4px}
+.stat .s-lbl i{font-size:13px}
+.stat .s-val{font-size:21px;font-weight:700;letter-spacing:-.02em;font-family:'DM Mono',monospace}
+.stat .s-sub{font-size:10px;color:var(--text3);margin-top:2px}
+.kanban{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:start}
+.k-col{min-height:120px;transition:background .15s;border-radius:var(--r);padding:2px}
+.k-col.drag-over{background:var(--surface2)}
+.k-hdr{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;padding:7px 9px;background:var(--surface2);border-radius:7px;margin-bottom:7px;display:flex;align-items:center;justify-content:space-between;user-select:none}
+.k-cnt{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:0 7px;font-size:10px;color:var(--text3);font-family:'DM Mono',monospace}
+.k-drop-zone{min-height:40px;border-radius:8px;transition:all .15s;margin-bottom:4px}
+.k-drop-zone.drag-over{background:var(--blue-bg);border:1.5px dashed var(--blue-mid);min-height:60px}
+.deal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:7px;cursor:grab;transition:all .15s;position:relative;user-select:none}
+.deal:hover{border-color:var(--border2);box-shadow:0 2px 8px rgba(0,0,0,.07)}
+.deal.dragging{opacity:.35;transform:scale(.97);cursor:grabbing}
+.deal.urgent{border-left:3px solid #D94040}
+.deal.dim{opacity:.55}
+.deal .drag-handle{position:absolute;top:8px;right:8px;color:var(--text3);font-size:14px;opacity:0;transition:opacity .12s}
+.deal:hover .drag-handle{opacity:1}
+.deal .d-name{font-size:13px;font-weight:600;margin-bottom:4px;letter-spacing:-.01em;padding-right:18px}
+.deal .d-row{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:4px;margin-bottom:2px}
+.deal .d-row i{font-size:12px;opacity:.55;flex-shrink:0}
+.d-tags{margin-top:6px;display:flex;flex-wrap:wrap;gap:3px;align-items:center;justify-content:space-between}
+.tag{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px}
+.tag.urg{background:var(--red-bg);color:var(--red)}
+.tag.ok{background:var(--green-bg);color:var(--green)}
+.tag.warn{background:var(--amber-bg);color:var(--amber)}
+.tag.info{background:var(--blue-bg);color:var(--blue)}
+.tag.muted{background:var(--surface2);color:var(--text2)}
+.comp-pct{font-size:10px;font-weight:700;font-family:'DM Mono',monospace}
+.add-card{width:100%;padding:7px;font-size:11px;font-weight:500;color:var(--text3);border:1px dashed var(--border2);border-radius:8px;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;font-family:'DM Sans',sans-serif;transition:all .12s;margin-top:2px}
+.add-card:hover{background:var(--surface2);color:var(--text2);border-style:solid}
+.move-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--text);color:#fff;padding:9px 16px;border-radius:9px;font-size:12px;font-weight:500;z-index:999;opacity:0;transition:all .22s;pointer-events:none;white-space:nowrap}
+.move-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.drawer-overlay{position:fixed;inset:0;background:rgba(24,23,15,.4);z-index:200;display:flex;justify-content:flex-end;opacity:0;pointer-events:none;transition:opacity .2s}
+.drawer-overlay.open{opacity:1;pointer-events:all}
+.drawer{width:580px;max-width:95vw;background:var(--surface);height:100vh;overflow-y:auto;display:flex;flex-direction:column;transform:translateX(40px);transition:transform .2s;box-shadow:-4px 0 24px rgba(0,0,0,.1)}
+.drawer-overlay.open .drawer{transform:translateX(0)}
+.drawer-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:1;flex-shrink:0}
+.drawer-head h2{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.drawer-tabs{display:flex;gap:4px;margin-left:12px}
+.dtab{padding:4px 10px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid var(--border);background:none;cursor:pointer;color:var(--text2);font-family:'DM Sans',sans-serif;transition:all .12s}
+.dtab.active{background:var(--text);color:#fff;border-color:var(--text)}
+.close-x{width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:15px}
+.close-x:hover{background:var(--surface2)}
+.drawer-body{padding:18px 20px;flex:1}
+.drawer-foot{padding:13px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:space-between;align-items:center;position:sticky;bottom:0;background:var(--surface);flex-shrink:0}
+.fsec{margin-bottom:16px}
+.fsec-title{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px}
+.fsec-title i{font-size:14px}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px}
+.frow.full{grid-template-columns:1fr}
+.frow.tri{grid-template-columns:1fr 1fr 1fr}
+.field{display:flex;flex-direction:column;gap:3px}
+.field label{font-size:11px;font-weight:600;color:var(--text2)}
+.field label .req{color:var(--red);margin-left:1px}
+.field input,.field select,.field textarea{font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;transition:border-color .12s;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--text)}
+.field textarea{resize:vertical;min-height:52px}
+.field.hi input,.field.hi select{border-color:var(--blue-mid);background:var(--blue-bg)}
+.field.hi label{color:var(--blue)}
+.tog-row{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border-radius:7px;margin-bottom:5px}
+.tog-lbl{font-size:12px;font-weight:500}
+.tog-grp{display:flex;gap:4px}
+.tog-btn{padding:4px 11px;font-size:11px;font-weight:600;border-radius:20px;border:1px solid var(--border2);cursor:pointer;background:none;color:var(--text2);font-family:'DM Sans',sans-serif;transition:all .12s}
+.tog-btn.yes{background:var(--green-bg);color:var(--green);border-color:#6DBD8A}
+.tog-btn.no{background:var(--red-bg);color:var(--red);border-color:#EE9999}
+.chip-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.chip{padding:4px 11px;font-size:11px;font-weight:600;border:1px solid var(--border2);border-radius:20px;cursor:pointer;background:none;color:var(--text2);font-family:'DM Sans',sans-serif;transition:all .12s}
+.chip:hover{background:var(--surface2)}
+.chip.on{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-mid)}
+.completude-bar{display:flex;align-items:center;gap:12px;background:var(--surface2);border-radius:var(--r);padding:12px 14px;margin-bottom:14px}
+.comp-big{font-size:22px;font-weight:700;font-family:'DM Mono',monospace;min-width:52px}
+.comp-track{flex:1}
+.comp-prog{height:5px;background:var(--border);border-radius:20px;overflow:hidden;margin-bottom:5px}
+.comp-fill{height:100%;border-radius:20px;transition:width .3s,background .3s}
+.comp-missing{font-size:10px;color:var(--text3);line-height:1.5}
+.urg-banner{display:flex;align-items:center;gap:7px;background:var(--red-bg);color:var(--red);padding:8px 11px;border-radius:8px;font-size:12px;font-weight:600;margin-bottom:12px}
+.prefix-wrap{position:relative}
+.prefix-wrap input{padding-left:28px}
+.prefix{position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text3);pointer-events:none}
+.tarif-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.tarif-chip{background:var(--surface2);border-radius:8px;padding:9px 11px}
+.tarif-chip .tc-lbl{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.tarif-chip .tc-val{font-size:15px;font-weight:700;font-family:'DM Mono',monospace;color:var(--text)}
+.ai-box{background:var(--surface2);border-radius:8px;padding:11px;font-size:12px;color:var(--text2);line-height:1.7;min-height:68px;white-space:pre-wrap;font-family:'DM Mono',monospace}
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid var(--border2);border-top-color:var(--text);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);padding:15px}
+.kpi .k-lbl{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+.kpi .k-val{font-size:24px;font-weight:700;letter-spacing:-.02em;font-family:'DM Mono',monospace}
+.kpi .k-sub{font-size:10px;color:var(--text3);margin-top:2px}
+.kpi .prog{height:4px;background:var(--border);border-radius:20px;margin-top:8px;overflow:hidden}
+.kpi .prog-fill{height:100%;border-radius:20px}
+.cal-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);padding:18px;margin-bottom:18px}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-nav h3{font-size:14px;font-weight:600}
+.cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px}
+.cal-dow div{font-size:10px;font-weight:700;color:var(--text3);text-align:center;padding:4px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cday{min-height:62px;border:1px solid var(--border);border-radius:7px;padding:5px 6px;background:var(--surface)}
+.cday.other{background:var(--surface2);opacity:.45}
+.cday.today{border-color:var(--text);border-width:1.5px}
+.cday.has-urg{background:var(--red-bg);border-color:#D94040}
+.cday .dn{font-size:11px;font-weight:700;color:var(--text3);margin-bottom:2px}
+.cday.today .dn{color:var(--text)}
+.cev{font-size:9px;font-weight:600;padding:1px 4px;border-radius:3px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cev.pitch{background:var(--blue-bg);color:var(--blue)}
+.cev.nego{background:var(--amber-bg);color:var(--amber)}
+.cev.goal{background:var(--green-bg);color:var(--green)}
+.cev.urg{background:var(--red-bg);color:var(--red)}
+.tl{display:flex;flex-direction:column}
+.tl-item{display:flex;gap:12px}
+.tl-left{display:flex;flex-direction:column;align-items:center;width:18px}
+.tl-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;margin-top:2px}
+.tl-line{width:1px;background:var(--border);flex:1;margin:4px 0;min-height:20px}
+.tl-body{padding-bottom:18px;flex:1}
+.tl-body .tl-t{font-size:13px;font-weight:600;margin-bottom:2px}
+.tl-body .tl-d{font-size:11px;color:var(--text3)}
+.notif{position:fixed;bottom:20px;right:20px;background:var(--text);color:#fff;padding:11px 16px;border-radius:9px;font-size:13px;font-weight:500;z-index:999;opacity:0;transform:translateY(6px);transition:all .22s;pointer-events:none}
+.notif.show{opacity:1;transform:translateY(0)}
+.auth-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:500;flex-direction:column;gap:16px}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);padding:2rem 2.5rem;text-align:center;max-width:360px}
+.auth-card h2{font-size:18px;font-weight:600;margin-bottom:8px}
+.auth-card p{font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.6}
+.auth-error{font-size:12px;color:var(--red);margin-top:10px;display:none}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:20px}
+</style>
+</head>
+<body>
+
+<!-- ÉCRAN DE CONNEXION -->
+<div class="auth-screen" id="auth-screen">
+  <div class="auth-card">
+    <div style="width:48px;height:48px;background:var(--text);border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:#fff;font-size:24px"><i class="ti ti-ticket"></i></div>
+    <h2>PitchCRM</h2>
+    <p>Connecte-toi avec ton compte Microsoft pour accéder au pipeline de vente.</p>
+    <button class="btn primary" style="width:100%;justify-content:center" onclick="signIn()">
+      <i class="ti ti-brand-windows"></i> Se connecter avec Microsoft
+    </button>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<div class="layout" id="app" style="display:none">
+  <div class="sidebar">
+    <div class="logo-wrap">
+      <div class="logo-icon"><i class="ti ti-ticket"></i></div>
+      <div><div class="logo-name">PitchCRM</div><div class="logo-sub">Sales Pipeline</div></div>
+    </div>
+    <div class="nav">
+      <div class="nav-sect">Ventes</div>
+      <div class="nav-item active" onclick="goPage('pipeline',this)"><i class="ti ti-layout-columns"></i> Pipeline</div>
+      <div class="nav-item" onclick="goPage('cal',this)"><i class="ti ti-calendar"></i> Calendrier</div>
+      <div class="nav-item" onclick="goPage('objectifs',this)"><i class="ti ti-target"></i> Objectifs</div>
+    </div>
+    <div class="sidebar-foot">
+      <div class="user-row">
+        <div class="avatar" id="user-avatar">??</div>
+        <div>
+          <div class="u-name" id="user-name">Chargement...</div>
+          <div class="u-role">Agent de vente</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="page-title" id="page-title">Pipeline</div>
+        <div class="page-sub" id="page-sub">Glisse les cartes pour faire avancer les deals</div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn" onclick="signOut()"><i class="ti ti-logout"></i> Déconnexion</button>
+        <button class="btn primary" onclick="openDrawer(null)"><i class="ti ti-plus"></i> Nouvelle fiche</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div id="page-pipeline" class="panel active">
+        <div class="stats-row" id="stats-row"></div>
+        <div class="kanban" id="kanban-board"></div>
+      </div>
+
+      <div id="page-cal" class="panel">
+        <div class="kpi-row">
+          <div class="kpi"><div class="k-lbl">Pitchs ce mois</div><div class="k-val" style="color:var(--blue)">4 <span style="font-size:14px;color:var(--text3)">/ 6</span></div><div class="k-sub">Objectif mensuel</div><div class="prog"><div class="prog-fill" style="width:67%;background:var(--blue)"></div></div></div>
+          <div class="kpi"><div class="k-lbl">Deals closés Q2</div><div class="k-val" style="color:var(--green)">2 <span style="font-size:14px;color:var(--text3)">/ 5</span></div><div class="k-sub">Objectif trimestriel</div><div class="prog"><div class="prog-fill" style="width:40%;background:var(--green)"></div></div></div>
+          <div class="kpi"><div class="k-lbl">Revenus closés</div><div class="k-val" style="color:var(--amber)">155k$</div><div class="k-sub">sur 400k$ visés Q2</div><div class="prog"><div class="prog-fill" style="width:39%;background:var(--amber)"></div></div></div>
+        </div>
+        <div class="cal-wrap">
+          <div class="cal-nav">
+            <button class="btn sm" onclick="changeMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+            <h3 id="cal-lbl"></h3>
+            <button class="btn sm" onclick="changeMonth(1)"><i class="ti ti-chevron-right"></i></button>
+          </div>
+          <div class="cal-dow"><div>Dim</div><div>Lun</div><div>Mar</div><div>Mer</div><div>Jeu</div><div>Ven</div><div>Sam</div></div>
+          <div class="cal-grid" id="cal-grid"></div>
+        </div>
+      </div>
+
+      <div id="page-objectifs" class="panel">
+        <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
+          <div class="kpi"><div class="k-lbl">Pipeline total</div><div class="k-val">360k$</div><div class="k-sub">Revenus potentiels</div></div>
+          <div class="kpi"><div class="k-lbl">Objectif annuel</div><div class="k-val" style="color:var(--blue)">800k$</div><div class="k-sub">45% atteint</div><div class="prog"><div class="prog-fill" style="width:45%;background:var(--blue)"></div></div></div>
+          <div class="kpi"><div class="k-lbl">Win rate</div><div class="k-val" style="color:var(--green)">40%</div><div class="k-sub">2 sur 5 tentatives</div></div>
+          <div class="kpi"><div class="k-lbl">Deals actifs</div><div class="k-val" style="color:var(--amber)">5</div><div class="k-sub">To pitch + en négo</div></div>
+        </div>
+        <div class="cal-wrap">
+          <h3 style="font-size:14px;font-weight:600;margin-bottom:16px">Timeline des objectifs</h3>
+          <div class="tl">
+            <div class="tl-item"><div class="tl-left"><div class="tl-dot" style="background:var(--red)"></div><div class="tl-line"></div></div><div class="tl-body"><div class="tl-t">Pitcher Les Remparts FC — deadline Desjardins</div><div class="tl-d">15 juin 2026 · <span style="color:var(--red);font-weight:700">URGENT</span></div></div></div>
+            <div class="tl-item"><div class="tl-left"><div class="tl-dot" style="background:var(--amber)"></div><div class="tl-line"></div></div><div class="tl-body"><div class="tl-t">Closer Wolves MTL ou Aiglons de Mtl</div><div class="tl-d">30 juin 2026 · Objectif fin Q2</div></div></div>
+            <div class="tl-item"><div class="tl-left"><div class="tl-dot" style="background:var(--green)"></div><div class="tl-line"></div></div><div class="tl-body"><div class="tl-t">Pitcher Condors de Laval + Lynx de Québec</div><div class="tl-d">Juillet – août 2026</div></div></div>
+            <div class="tl-item"><div class="tl-left"><div class="tl-dot" style="background:var(--blue)"></div><div class="tl-line"></div></div><div class="tl-body"><div class="tl-t">Objectif Q3 : 5 nouveaux deals, 250k$ revenus</div><div class="tl-d">30 septembre 2026</div></div></div>
+            <div class="tl-item"><div class="tl-left"><div class="tl-dot" style="background:var(--purple)"></div></div><div class="tl-body"><div class="tl-t">Relancer Titan de Limoilou</div><div class="tl-d">Janvier 2027</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DRAWER -->
+<div class="drawer-overlay" id="drawer" onclick="overlayClick(event)">
+  <div class="drawer">
+    <div class="drawer-head">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+        <h2 id="drawer-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Nouvelle fiche</h2>
+        <div class="drawer-tabs">
+          <button class="dtab active" id="dtab-info" onclick="switchDTab('info')">Infos & qualification</button>
+          <button class="dtab" id="dtab-tarif" onclick="switchDTab('tarif')">Tarification</button>
+          <button class="dtab" id="dtab-pitch" onclick="switchDTab('pitch')">Pitch IA</button>
+        </div>
+      </div>
+      <button class="close-x" onclick="closeDrawer()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="drawer-body">
+      <div class="completude-bar">
+        <div>
+          <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Infos collectées</div>
+          <div class="comp-big" id="comp-pct" style="color:var(--blue)">0%</div>
+        </div>
+        <div class="comp-track">
+          <div class="comp-prog"><div class="comp-fill" id="comp-fill" style="width:0%;background:var(--blue)"></div></div>
+          <div class="comp-missing" id="comp-missing">Remplis les champs obligatoires.</div>
+        </div>
+      </div>
+
+      <div id="dpanel-info">
+        <div id="d-urg-banner" class="urg-banner" style="display:none"><i class="ti ti-alarm"></i><span id="d-urg-text"></span></div>
+        <div class="fsec">
+          <div class="fsec-title"><i class="ti ti-building-store"></i> Infos générales</div>
+          <div class="frow">
+            <div class="field"><label>Nom de l'équipe <span class="req">*</span></label><input type="text" id="d-team" placeholder="ex : Remparts FC" oninput="onFieldChange()"/></div>
+            <div class="field"><label>Stade</label>
+              <select id="d-stage" onchange="onFieldChange()">
+                <option value="pitch">To be pitched</option>
+                <option value="nego">En négociation</option>
+                <option value="closed">Closed</option>
+                <option value="repitch">À repitch plus tard</option>
+                <option value="oublie">On oublie</option>
+              </select>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="field hi"><label>Fournisseur actuel <span class="req">*</span></label><input type="text" id="d-supplier" placeholder="ex : Desjardins" oninput="onFieldChange()"/></div>
+            <div class="field hi"><label>Fin de contrat <span class="req">*</span></label><input type="date" id="d-expiry" oninput="onFieldChange();checkUrgency()"/></div>
+          </div>
+          <div class="frow">
+            <div class="field"><label>Commencement visé</label><input type="date" id="d-start"/></div>
+            <div class="field"><label>Responsable du pitch <span class="req">*</span></label><input type="text" id="d-owner" placeholder="ex : Marc Tremblay" oninput="onFieldChange()"/></div>
+          </div>
+          <div class="frow full"><div class="field"><label>Commentaires généraux</label><textarea id="d-notes" placeholder="ex : Le DG est ouvert mais attend leur AGA..."></textarea></div></div>
+        </div>
+        <div class="fsec">
+          <div class="fsec-title"><i class="ti ti-clipboard-list"></i> Qualification — besoins opérationnels</div>
+          <div class="frow">
+            <div class="field"><label>Billets / année <span class="req">*</span></label><input type="number" id="d-tkt-yr" placeholder="ex : 15 000" oninput="onFieldChange()"/></div>
+            <div class="field"><label>Billets / événement</label><input type="number" id="d-tkt-ev" placeholder="ex : 800"/></div>
+          </div>
+          <div class="field" style="margin-bottom:9px">
+            <label>Format billets (2po × 5,5po) <span class="req">*</span></label>
+            <div class="chip-row">
+              <button class="chip" id="chip-blank" onclick="selChip('tkttype','blank',this)">Blank standard</button>
+              <button class="chip" id="chip-custom" onclick="selChip('tkttype','custom',this)">Personnalisés</button>
+              <button class="chip" id="chip-both" onclick="selChip('tkttype','both',this)">Les deux</button>
+            </div>
+          </div>
+          <div class="frow tri">
+            <div class="field"><label>Nb scanneurs <span class="req">*</span></label><input type="number" id="d-scan" placeholder="ex : 4" oninput="onFieldChange()"/></div>
+            <div class="field"><label>Nb imprimantes <span class="req">*</span></label><input type="number" id="d-print" placeholder="ex : 2" oninput="onFieldChange()"/></div>
+            <div class="field"><label>Nb TPV <span class="req">*</span></label><input type="number" id="d-tpv" placeholder="ex : 6" oninput="onFieldChange()"/></div>
+          </div>
+          <div class="frow full"><div class="field"><label>Volume de transactions / an</label><input type="text" id="d-vol" placeholder="ex : 75 000 $" oninput="onFieldChange()"/></div></div>
+          <div class="tog-row"><span class="tog-lbl">Billetterie mobile / app</span><div class="tog-grp"><button class="tog-btn" id="tog-mob-y" onclick="selTog('mobile',true)">Oui</button><button class="tog-btn" id="tog-mob-n" onclick="selTog('mobile',false)">Non</button></div></div>
+          <div class="tog-row"><span class="tog-lbl">Boutique souvenir intégrée <span class="req">*</span></span><div class="tog-grp"><button class="tog-btn" id="tog-bout-y" onclick="selTog('boutique',true)">Oui</button><button class="tog-btn" id="tog-bout-n" onclick="selTog('boutique',false)">Non</button></div></div>
+          <div class="tog-row" style="margin-bottom:9px"><span class="tog-lbl">Gestion membres / saison</span><div class="tog-grp"><button class="tog-btn" id="tog-mbr-y" onclick="selTog('membres',true)">Oui</button><button class="tog-btn" id="tog-mbr-n" onclick="selTog('membres',false)">Non</button></div></div>
+          <div class="frow">
+            <div class="field"><label>Infolettres / année</label><input type="number" id="d-nl-yr" placeholder="ex : 24"/></div>
+            <div class="field"><label>Base contacts (nb abonnés)</label><input type="number" id="d-contacts" placeholder="ex : 3 500"/></div>
+          </div>
+          <div class="frow full"><div class="field"><label>Objections / points sensibles</label><textarea id="d-obj" placeholder="ex : Satisfaits mais ouverts si prix compétitif..."></textarea></div></div>
+        </div>
+      </div>
+
+      <div id="dpanel-tarif" style="display:none">
+        <div class="fsec">
+          <div class="fsec-title"><i class="ti ti-receipt"></i> Frais chargés au client</div>
+          <div class="frow">
+            <div class="field"><label>Frais fixes / mois ($)</label><div class="prefix-wrap"><span class="prefix">$</span><input type="number" id="d-tarif-fixe-mo" placeholder="ex : 150" oninput="updateTarifSummary()"/></div></div>
+            <div class="field"><label>Frais fixes / an ($)</label><div class="prefix-wrap"><span class="prefix">$</span><input type="number" id="d-tarif-fixe-an" placeholder="ex : 1 800" oninput="updateTarifSummary()"/></div></div>
+          </div>
+          <div class="frow">
+            <div class="field"><label>% par transaction</label><div class="prefix-wrap"><span class="prefix">%</span><input type="number" id="d-tarif-pct" step="0.1" placeholder="ex : 2.0" oninput="updateTarifSummary()"/></div></div>
+            <div class="field"><label>Frais de setup ($)</label><div class="prefix-wrap"><span class="prefix">$</span><input type="number" id="d-tarif-setup" placeholder="ex : 500" oninput="updateTarifSummary()"/></div></div>
+          </div>
+          <div class="frow">
+            <div class="field"><label>Frais infolettre / envoi ($)</label><div class="prefix-wrap"><span class="prefix">$</span><input type="number" id="d-tarif-nl" step="0.01" placeholder="ex : 0.02" oninput="updateTarifSummary()"/></div></div>
+            <div class="field"><label>Rabais / escompte ($)</label><div class="prefix-wrap"><span class="prefix">$</span><input type="number" id="d-tarif-rabais" placeholder="ex : 200" oninput="updateTarifSummary()"/></div></div>
+          </div>
+        </div>
+        <div class="fsec">
+          <div class="fsec-title"><i class="ti ti-star"></i> Commandite</div>
+          <div class="frow">
+            <div class="field"><label>Valeur commandite ($)</label><div class="prefix-wrap"><span class="prefix">$</span><input type="number" id="d-tarif-comman" placeholder="ex : 2 000" oninput="updateTarifSummary()"/></div></div>
+            <div class="field"><label>Détails</label><input type="text" id="d-tarif-comman-desc" placeholder="ex : bannière + annonce PA"/></div>
+          </div>
+        </div>
+        <div class="fsec">
+          <div class="fsec-title"><i class="ti ti-calculator"></i> Résumé de l'entente</div>
+          <div class="tarif-summary">
+            <div class="tarif-chip"><div class="tc-lbl">Frais fixes/an</div><div class="tc-val" id="ts-fixe">—</div></div>
+            <div class="tarif-chip"><div class="tc-lbl">% transaction</div><div class="tc-val" id="ts-pct">—</div></div>
+            <div class="tarif-chip"><div class="tc-lbl">Setup</div><div class="tc-val" id="ts-setup">—</div></div>
+            <div class="tarif-chip"><div class="tc-lbl">Infolettre/envoi</div><div class="tc-val" id="ts-nl">—</div></div>
+            <div class="tarif-chip"><div class="tc-lbl">Rabais accordé</div><div class="tc-val" id="ts-rabais" style="color:var(--green)">—</div></div>
+            <div class="tarif-chip"><div class="tc-lbl">Commandite</div><div class="tc-val" id="ts-comman" style="color:var(--purple)">—</div></div>
+          </div>
+          <div class="frow full" style="margin-top:10px"><div class="field"><label>Notes sur la tarification</label><textarea id="d-tarif-notes" placeholder="ex : Tarif préférentiel 3 ans..."></textarea></div></div>
+        </div>
+      </div>
+
+      <div id="dpanel-pitch" style="display:none">
+        <div class="fsec">
+          <div class="fsec-title"><i class="ti ti-sparkles"></i> Pitch personnalisé par Claude</div>
+          <div class="ai-box" id="d-ai-out">Remplis d'abord les infos générales et la qualification, puis génère le pitch.</div>
+          <div style="display:flex;gap:7px;margin-top:9px;flex-wrap:wrap">
+            <button class="btn" onclick="generatePitch()" id="d-gen-btn"><i class="ti ti-sparkles"></i> Générer le pitch</button>
+            <button class="btn" onclick="generateSommaire()" id="d-sum-btn"><i class="ti ti-file-description"></i> Sommaire complet</button>
+          </div>
+        </div>
+        <div id="d-sommaire-wrap" style="display:none">
+          <div class="fsec"><div class="fsec-title"><i class="ti ti-file-text"></i> Profil de besoin</div><div class="ai-box" id="d-sum-profil"></div></div>
+          <div class="fsec"><div class="fsec-title"><i class="ti ti-shield-check"></i> Points à valider avant de closer</div><div class="ai-box" id="d-sum-todo"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <div style="font-size:11px;color:var(--text3)">* Champs requis pour compléter le profil</div>
+      <div style="display:flex;gap:7px">
+        <button class="btn" onclick="closeDrawer()">Annuler</button>
+        <button class="btn primary" onclick="saveFiche()"><i class="ti ti-check"></i> Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="notif" id="notif"></div>
+<div class="move-toast" id="move-toast"></div>
+
+<script>
+// ---- CONFIG MICROSOFT ----
+const MSAL_CONFIG = {
+  auth: {
+    clientId: "d516c239-9d35-46cd-b365-c3b16420c1b2",
+    authority: "https://login.microsoftonline.com/cec28351-bbf5-4e36-a063-babe9940e76e",
+    redirectUri: window.location.origin || "http://localhost"
+  },
+  cache: { cacheLocation: "sessionStorage" }
+};
+const SCOPES = ["User.Read", "Sites.ReadWrite.All"];
+let msalInstance, currentUser;
+
+async function initAuth() {
+  msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
+  await msalInstance.initialize();
+  const accounts = msalInstance.getAllAccounts();
+  if (accounts.length > 0) {
+    currentUser = accounts[0];
+    showApp();
+  }
+}
+
+async function signIn() {
+  try {
+    const result = await msalInstance.loginPopup({ scopes: SCOPES });
+    currentUser = result.account;
+    showApp();
+  } catch (e) {
+    const err = document.getElementById('auth-error');
+    err.style.display = 'block';
+    err.textContent = 'Erreur de connexion : ' + (e.message || e);
+  }
+}
+
+function signOut() {
+  msalInstance.logoutPopup({ account: currentUser });
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+}
+
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  const name = currentUser.name || currentUser.username || 'Utilisateur';
+  document.getElementById('user-name').textContent = name;
+  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  document.getElementById('user-avatar').textContent = initials;
+  renderKanban();
+  renderCal();
+}
+
+async function getToken() {
+  try {
+    const r = await msalInstance.acquireTokenSilent({ scopes: SCOPES, account: currentUser });
+    return r.accessToken;
+  } catch (e) {
+    const r = await msalInstance.acquireTokenPopup({ scopes: SCOPES });
+    return r.accessToken;
+  }
+}
+
+// ---- DATA ----
+let DEALS = [
+  {id:1,name:'Les Remparts FC',col:'pitch',supplier:'Desjardins',expiry:'2026-06-15',vol:'~75k$/an',owner:'À assigner',tags:['urg'],comp:55,notes:''},
+  {id:2,name:'Condors de Laval',col:'pitch',supplier:'Sport Expert',expiry:'2026-09-30',vol:'~55k$/an',owner:'Marc Tremblay',tags:['ok'],comp:40,notes:''},
+  {id:3,name:'Lynx de Québec',col:'pitch',supplier:'Sportium',expiry:'2026-11-30',vol:'~40k$/an',owner:'Sara Bouchard',tags:['warn'],comp:35,notes:''},
+  {id:4,name:'Aiglons de Mtl',col:'nego',supplier:'Billetech',expiry:'',vol:'~85k$/an',owner:'Marc Tremblay',tags:['info'],comp:80,notes:''},
+  {id:5,name:'Wolves MTL',col:'nego',supplier:'TicketMaster',expiry:'',vol:'~120k$/an',owner:'Sara Bouchard',tags:['warn'],comp:75,notes:''},
+  {id:6,name:'Patriotes de L\'Assomption',col:'closed',supplier:'',expiry:'',vol:'95k$/an',owner:'Marc Tremblay',tags:['ok'],comp:100,notes:''},
+  {id:7,name:'Harfangs de Beauport',col:'closed',supplier:'',expiry:'',vol:'60k$/an',owner:'Sara Bouchard',tags:['ok'],comp:100,notes:''},
+  {id:8,name:'Titan de Limoilou',col:'repitch',supplier:'',expiry:'',vol:'',owner:'',tags:['muted'],comp:20,notes:''},
+  {id:9,name:'Bears de Brossard',col:'oublie',supplier:'',expiry:'',vol:'',owner:'',tags:['muted'],comp:10,notes:''},
+];
+
+const COLS = [
+  {id:'pitch',label:'To be pitched'},
+  {id:'nego',label:'En négociation'},
+  {id:'closed',label:'Closed'},
+  {id:'repitch',label:'À repitch'},
+  {id:'oublie',label:'On oublie'},
+];
+const COL_COLORS = {pitch:'',nego:'',closed:'var(--green)',repitch:'',oublie:'var(--text3)'};
+const TAG_HTML = {
+  urg:`<span class="tag urg"><i class="ti ti-alert-triangle" style="font-size:10px"></i> Urgent</span>`,
+  ok:`<span class="tag ok"><i class="ti ti-check" style="font-size:10px"></i> Dispo</span>`,
+  warn:`<span class="tag warn"><i class="ti ti-clock" style="font-size:10px"></i></span>`,
+  info:`<span class="tag info">Pitch envoyé</span>`,
+  muted:`<span class="tag muted">En attente</span>`,
+};
+
+let dragId = null, nextId = 10, currentDealId = null;
+const togState = {boutique:null,tkttype:null};
+const REQUIRED_FIELDS = [
+  {id:'d-team',label:'Nom de l\'équipe'},{id:'d-supplier',label:'Fournisseur actuel'},
+  {id:'d-expiry',label:'Fin de contrat'},{id:'d-tkt-yr',label:'Billets / année'},
+  {id:'d-scan',label:'Nb scanneurs'},{id:'d-print',label:'Nb imprimantes'},
+  {id:'d-tpv',label:'Nb TPV'},{id:'d-owner',label:'Responsable'},
+];
+const REQUIRED_TOGG = [{key:'boutique',label:'Boutique souvenir'},{key:'tkttype',label:'Format billets'}];
+
+// ---- KANBAN ----
+function renderKanban() {
+  const board = document.getElementById('kanban-board');
+  board.innerHTML = COLS.map(col => {
+    const deals = DEALS.filter(d => d.col === col.id);
+    const color = COL_COLORS[col.id];
+    const cards = deals.map(d => dealCard(d)).join('');
+    const addBtn = col.id !== 'oublie' ? `<button class="add-card" onclick="openDrawer(null,'${col.id}')"><i class="ti ti-plus"></i> Ajouter</button>` : '';
+    return `<div class="k-col" id="col-${col.id}" ondragover="onDragOver(event,'${col.id}')" ondragleave="onDragLeave(event,'${col.id}')" ondrop="onDrop(event,'${col.id}')">
+      <div class="k-hdr" ${color ? `style="color:${color}"` : ''}>${col.label}<span class="k-cnt">${deals.length}</span></div>
+      <div class="k-drop-zone" id="dz-${col.id}" ondragover="onDragOver(event,'${col.id}')" ondragleave="onDragLeave(event,'${col.id}')" ondrop="onDrop(event,'${col.id}')">${cards}</div>
+      ${addBtn}
+    </div>`;
+  }).join('');
+  renderStats();
+}
+
+function dealCard(d) {
+  const compColor = d.comp >= 80 ? 'var(--green)' : d.comp >= 50 ? 'var(--amber)' : 'var(--red)';
+  const tags = d.tags.map(t => TAG_HTML[t] || '').join('');
+  return `<div class="deal ${d.tags.includes('urg') ? 'urgent' : ''} ${d.col === 'oublie' ? 'dim' : ''}" id="deal-${d.id}" draggable="true" ondragstart="onDragStart(event,${d.id})" ondragend="onDragEnd()" onclick="openDrawer(${d.id})">
+    <i class="ti ti-grip-vertical drag-handle" aria-hidden="true"></i>
+    <div class="d-name">${d.name}</div>
+    ${d.supplier ? `<div class="d-row"><i class="ti ti-building"></i>${d.supplier}</div>` : ''}
+    ${d.expiry ? `<div class="d-row"><i class="ti ti-calendar-event"></i>Expire : <strong>${formatDate(d.expiry)}</strong></div>` : ''}
+    ${d.vol ? `<div class="d-row"><i class="ti ti-chart-bar"></i>${d.vol}</div>` : ''}
+    ${d.owner ? `<div class="d-row"><i class="ti ti-user"></i>${d.owner}</div>` : ''}
+    <div class="d-tags"><div style="display:flex;gap:3px;flex-wrap:wrap">${tags}</div><span class="comp-pct" style="color:${compColor}">${d.comp}%</span></div>
+  </div>`;
+}
+
+function renderStats() {
+  const pitch = DEALS.filter(d => d.col === 'pitch').length;
+  const nego = DEALS.filter(d => d.col === 'nego').length;
+  const closed = DEALS.filter(d => d.col === 'closed').length;
+  const urgent = DEALS.filter(d => d.tags.includes('urg')).length;
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat"><div class="s-lbl"><i class="ti ti-users"></i>Prospects actifs</div><div class="s-val" style="color:var(--blue)">${pitch + nego}</div><div class="s-sub">sur ${DEALS.length} total</div></div>
+    <div class="stat"><div class="s-lbl" style="color:var(--red)"><i class="ti ti-alarm"></i>Urgents</div><div class="s-val" style="color:var(--red)">${urgent}</div><div class="s-sub">Contrat &lt; 30 jours</div></div>
+    <div class="stat"><div class="s-lbl" style="color:var(--amber)"><i class="ti ti-clock"></i>En négociation</div><div class="s-val" style="color:var(--amber)">${nego}</div><div class="s-sub">~205k$ potentiel</div></div>
+    <div class="stat"><div class="s-lbl" style="color:var(--green)"><i class="ti ti-check"></i>Closés</div><div class="s-val" style="color:var(--green)">${closed}</div><div class="s-sub">155k$/an</div></div>
+    <div class="stat"><div class="s-lbl"><i class="ti ti-chart-bar"></i>Pipeline</div><div class="s-val">360k$</div><div class="s-sub">Revenus potentiels</div></div>`;
+}
+
+// ---- DRAG & DROP ----
+function onDragStart(e, id) {
+  dragId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', id);
+  setTimeout(() => { const el = document.getElementById('deal-' + id); if (el) el.classList.add('dragging'); }, 0);
+}
+function onDragEnd() {
+  document.querySelectorAll('.deal').forEach(el => el.classList.remove('dragging'));
+  document.querySelectorAll('.k-drop-zone,.k-col').forEach(el => el.classList.remove('drag-over'));
+  dragId = null;
+}
+function onDragOver(e, colId) {
+  e.preventDefault();
+  document.querySelectorAll('.k-drop-zone').forEach(el => el.classList.remove('drag-over'));
+  const dz = document.getElementById('dz-' + colId);
+  if (dz) dz.classList.add('drag-over');
+}
+function onDragLeave(e, colId) {
+  const col = document.getElementById('col-' + colId);
+  if (col && !col.contains(e.relatedTarget)) {
+    const dz = document.getElementById('dz-' + colId);
+    if (dz) dz.classList.remove('drag-over');
+  }
+}
+function onDrop(e, colId) {
+  e.preventDefault();
+  document.querySelectorAll('.k-drop-zone,.k-col').forEach(el => el.classList.remove('drag-over'));
+  const id = parseInt(e.dataTransfer.getData('text/plain') || dragId);
+  if (!id) return;
+  const deal = DEALS.find(d => d.id === id);
+  if (!deal || deal.col === colId) return;
+  deal.col = colId;
+  if (colId === 'closed') deal.tags = ['ok'];
+  else if (colId === 'oublie' || colId === 'repitch') deal.tags = ['muted'];
+  else if (colId === 'nego' && !deal.tags.includes('urg')) deal.tags = ['info'];
+  renderKanban();
+  const colLabel = COLS.find(c => c.id === colId)?.label || colId;
+  showMoveToast(`${deal.name} → ${colLabel}`);
+  showNotif(`✓ ${deal.name} déplacé vers "${colLabel}"`);
+}
+
+// ---- UTILS ----
+function formatDate(d) {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  const months = ['jan.','fév.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+  return `${parseInt(day)} ${months[parseInt(m) - 1]} ${y}`;
+}
+function showMoveToast(msg) {
+  const t = document.getElementById('move-toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+function showNotif(msg) {
+  const n = document.getElementById('notif');
+  n.textContent = msg; n.classList.add('show');
+  setTimeout(() => n.classList.remove('show'), 2800);
+}
+
+// ---- DRAWER ----
+function openDrawer(dealId, defaultCol) {
+  currentDealId = dealId;
+  const deal = dealId ? DEALS.find(d => d.id === dealId) : null;
+  resetDrawer();
+  if (deal) {
+    document.getElementById('drawer-title').textContent = deal.name;
+    document.getElementById('d-team').value = deal.name || '';
+    document.getElementById('d-supplier').value = deal.supplier || '';
+    document.getElementById('d-expiry').value = deal.expiry || '';
+    document.getElementById('d-vol').value = deal.vol || '';
+    document.getElementById('d-owner').value = deal.owner || '';
+    document.getElementById('d-stage').value = deal.col || 'pitch';
+    document.getElementById('d-notes').value = deal.notes || '';
+    checkUrgency();
+  } else {
+    document.getElementById('drawer-title').textContent = 'Nouvelle fiche';
+    if (defaultCol) document.getElementById('d-stage').value = defaultCol;
+  }
+  switchDTab('info');
+  calcCompletude();
+  document.getElementById('drawer').classList.add('open');
+}
+
+function resetDrawer() {
+  ['d-team','d-supplier','d-expiry','d-start','d-owner','d-notes','d-tkt-yr','d-tkt-ev','d-scan','d-print','d-tpv','d-vol','d-nl-yr','d-contacts','d-obj',
+   'd-tarif-fixe-mo','d-tarif-fixe-an','d-tarif-pct','d-tarif-setup','d-tarif-nl','d-tarif-rabais','d-tarif-comman','d-tarif-comman-desc','d-tarif-notes']
+  .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('d-stage').value = 'pitch';
+  Object.keys(togState).forEach(k => togState[k] = null);
+  ['tog-bout-y','tog-bout-n',].forEach(id => {
+    const el = document.getElementById(id); if (el) el.className = 'tog-btn';
+  });
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  document.getElementById('d-urg-banner').style.display = 'none';
+  document.getElementById('d-ai-out').textContent = 'Remplis d\'abord les infos générales et la qualification, puis génère le pitch.';
+  document.getElementById('d-sommaire-wrap').style.display = 'none';
+  updateTarifSummary();
+}
+
+function closeDrawer() { document.getElementById('drawer').classList.remove('open'); }
+function overlayClick(e) { if (e.target === document.getElementById('drawer')) closeDrawer(); }
+
+function switchDTab(t) {
+  ['info','tarif','pitch'].forEach(id => {
+    document.getElementById('dpanel-' + id).style.display = t === id ? 'block' : 'none';
+    document.getElementById('dtab-' + id).classList.toggle('active', t === id);
+  });
+}
+
+function calcCompletude() {
+  const missing = [];
+  let filled = 0;
+  const total = REQUIRED_FIELDS.length + REQUIRED_TOGG.length;
+  REQUIRED_FIELDS.forEach(f => {
+    const el = document.getElementById(f.id);
+    if (el && el.value.trim()) filled++;
+    else missing.push(f.label);
+  });
+  REQUIRED_TOGG.forEach(f => {
+    if (togState[f.key] !== null) filled++;
+    else missing.push(f.label);
+  });
+  const pct = Math.round(filled / total * 100);
+  document.getElementById('comp-pct').textContent = pct + '%';
+  document.getElementById('comp-fill').style.width = pct + '%';
+  let color = 'var(--red)';
+  if (pct >= 80) color = 'var(--green)';
+  else if (pct >= 50) color = 'var(--amber)';
+  document.getElementById('comp-fill').style.background = color;
+  document.getElementById('comp-pct').style.color = color;
+  document.getElementById('comp-missing').textContent = missing.length === 0
+    ? 'Toutes les infos sont collectées ✓'
+    : 'Manque : ' + missing.slice(0, 4).join(', ') + (missing.length > 4 ? ` + ${missing.length - 4} autres` : '');
+}
+
+function onFieldChange() { calcCompletude(); }
+
+function checkUrgency() {
+  const d = document.getElementById('d-expiry').value;
+  const ban = document.getElementById('d-urg-banner');
+  if (!d) { ban.style.display = 'none'; return; }
+  const diff = Math.ceil((new Date(d) - new Date()) / 86400000);
+  if (diff >= 0 && diff <= 45) {
+    document.getElementById('d-urg-text').textContent = 'Contrat expire dans ' + diff + ' jours — pitcher en priorité!';
+    ban.style.display = 'flex';
+  } else { ban.style.display = 'none'; }
+}
+
+function selChip(group, val, el) {
+  togState[group] = val;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  el.classList.add('on');
+  calcCompletude();
+}
+
+function selTog(field, val) {
+  togState[field] = val;
+  const map = {mobile:[],boutique:['tog-bout-y','tog-bout-n'],membres:[]};
+  const ids = map[field];
+  if (ids) {
+    document.getElementById(ids[0]).className = 'tog-btn' + (val ? ' yes' : '');
+    document.getElementById(ids[1]).className = 'tog-btn' + (!val ? ' no' : '');
+  }
+  calcCompletude();
+}
+
+function fmt(v) { return v ? '$' + parseFloat(v).toLocaleString('fr-CA') : '—'; }
+function updateTarifSummary() {
+  const fixeAn = document.getElementById('d-tarif-fixe-an').value;
+  const fixeMo = document.getElementById('d-tarif-fixe-mo').value;
+  document.getElementById('ts-fixe').textContent = fixeAn ? fmt(fixeAn) : (fixeMo ? fmt(fixeMo * 12) : '—');
+  document.getElementById('ts-pct').textContent = document.getElementById('d-tarif-pct').value ? document.getElementById('d-tarif-pct').value + '%' : '—';
+  document.getElementById('ts-setup').textContent = fmt(document.getElementById('d-tarif-setup').value);
+  document.getElementById('ts-nl').textContent = fmt(document.getElementById('d-tarif-nl').value);
+  document.getElementById('ts-rabais').textContent = fmt(document.getElementById('d-tarif-rabais').value);
+  document.getElementById('ts-comman').textContent = fmt(document.getElementById('d-tarif-comman').value);
+}
+
+function getCtx() {
+  return {
+    team: document.getElementById('d-team').value || '[équipe]',
+    supplier: document.getElementById('d-supplier').value || '[fournisseur]',
+    expiry: document.getElementById('d-expiry').value || 'non précisée',
+    vol: document.getElementById('d-vol').value || 'non précisé',
+    tktYr: document.getElementById('d-tkt-yr').value || '?',
+    scan: document.getElementById('d-scan').value || '?',
+    print: document.getElementById('d-print').value || '?',
+    tpv: document.getElementById('d-tpv').value || '?',
+    boutique: togState.boutique === true ? 'Oui' : togState.boutique === false ? 'Non' : 'non précisé',
+    tktType: togState.tkttype || 'non précisé',
+    obj: document.getElementById('d-obj').value || 'aucune',
+    tarifPct: document.getElementById('d-tarif-pct').value || '',
+    tarifFixe: document.getElementById('d-tarif-fixe-an').value || '',
+    tarifRabais: document.getElementById('d-tarif-rabais').value || '',
+    tarifComman: document.getElementById('d-tarif-comman').value || '',
+  };
+}
+
+async function generatePitch() {
+  switchDTab('pitch');
+  const c = getCtx();
+  const btn = document.getElementById('d-gen-btn');
+  const out = document.getElementById('d-ai-out');
+  btn.innerHTML = '<span class="spinner"></span> Génération...'; btn.disabled = true; out.textContent = '';
+  const tarif = [];
+  if (c.tarifPct) tarif.push(c.tarifPct + '% par transaction');
+  if (c.tarifFixe) tarif.push('frais fixes ' + c.tarifFixe + '$/an');
+  if (c.tarifRabais) tarif.push('rabais ' + c.tarifRabais + '$');
+  if (c.tarifComman) tarif.push('commandite ' + c.tarifComman + '$');
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:`Tu es expert en vente de billetterie sportive. Pitch court et percutant (3-4 phrases) en français québécois pour convaincre "${c.team}" de changer de fournisseur.\nFournisseur actuel : ${c.supplier} | Fin contrat : ${c.expiry} | Volume : ${c.vol} | ${c.tktYr} billets/an | ${c.scan} scanneurs | ${c.print} imprimantes | ${c.tpv} TPV | Boutique: ${c.boutique}\n${tarif.length ? 'Tarif proposé : ' + tarif.join(', ') : ''}\nRéponds uniquement avec le pitch.`}]})});
+    const data = await res.json();
+    out.textContent = data.content?.map(b => b.text || '').join('') || 'Erreur.';
+  } catch (e) { out.textContent = 'Erreur de connexion.'; }
+  btn.innerHTML = '<i class="ti ti-sparkles"></i> Générer le pitch'; btn.disabled = false;
+}
+
+async function generateSommaire() {
+  switchDTab('pitch');
+  const c = getCtx();
+  const btn = document.getElementById('d-sum-btn');
+  btn.innerHTML = '<span class="spinner"></span> Analyse...'; btn.disabled = true;
+  document.getElementById('d-sommaire-wrap').style.display = 'none';
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,messages:[{role:'user',content:`Expert vente billetterie sportive. Profil : ${c.team} | Fournisseur: ${c.supplier} | Fin: ${c.expiry} | Volume: ${c.vol} | Billets/an: ${c.tktYr} | Scanneurs: ${c.scan} | Imprimantes: ${c.print} | TPV: ${c.tpv} | Boutique: ${c.boutique} | Objections: ${c.obj}\nJSON strict sans backticks : {"pitch":"3-4 phrases fr québécois","profil":"2-3 phrases fr québécois","todo":"3-4 points tirets fr québécois"}`}]})});
+    const data = await res.json();
+    let txt = data.content?.map(b => b.text || '').join('') || '{}';
+    txt = txt.replace(/```json|```/g, '').trim();
+    const p = JSON.parse(txt);
+    document.getElementById('d-ai-out').textContent = p.pitch || '—';
+    document.getElementById('d-sum-profil').textContent = p.profil || '—';
+    document.getElementById('d-sum-todo').textContent = p.todo || '—';
+    document.getElementById('d-sommaire-wrap').style.display = 'block';
+  } catch (e) { document.getElementById('d-ai-out').textContent = 'Erreur lors de la génération.'; }
+  btn.innerHTML = '<i class="ti ti-file-description"></i> Sommaire complet'; btn.disabled = false;
+}
+
+function saveFiche() {
+  const team = document.getElementById('d-team').value.trim();
+  if (!team) { alert('Ajoute le nom de l\'équipe!'); return; }
+  const stage = document.getElementById('d-stage').value;
+  if (currentDealId) {
+    const deal = DEALS.find(d => d.id === currentDealId);
+    if (deal) {
+      deal.name = team; deal.supplier = document.getElementById('d-supplier').value;
+      deal.expiry = document.getElementById('d-expiry').value; deal.vol = document.getElementById('d-vol').value;
+      deal.owner = document.getElementById('d-owner').value; deal.notes = document.getElementById('d-notes').value;
+      const oldCol = deal.col; deal.col = stage;
+      if (stage !== oldCol) showMoveToast(`${deal.name} → ${COLS.find(c => c.id === stage)?.label || stage}`);
+    }
+  } else {
+    DEALS.push({id:nextId++,name:team,col:stage,supplier:document.getElementById('d-supplier').value,
+      expiry:document.getElementById('d-expiry').value,vol:document.getElementById('d-vol').value,
+      owner:document.getElementById('d-owner').value,notes:document.getElementById('d-notes').value,tags:[],comp:0});
+  }
+  closeDrawer(); renderKanban();
+  showNotif('✓ Fiche "' + team + '" enregistrée');
+}
+
+// ---- PAGES ----
+const PAGE_META = {
+  pipeline:['Pipeline','Glisse les cartes pour faire avancer les deals'],
+  cal:['Calendrier','Pitchs planifiés et événements clés'],
+  objectifs:['Objectifs','Timeline et goals de vente']
+};
+function goPage(id, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  el.classList.add('active');
+  document.getElementById('page-title').textContent = PAGE_META[id][0];
+  document.getElementById('page-sub').textContent = PAGE_META[id][1];
+}
+
+// ---- CALENDRIER ----
+const CAL_EVENTS = {
+  '2026-06-03':[{t:'Lynx — appel découverte',c:'pitch'}],
+  '2026-06-05':[{t:'Wolves — réunion négo',c:'nego'}],
+  '2026-06-15':[{t:'Remparts — DEADLINE',c:'urg'}],
+  '2026-06-25':[{t:'Review Q2',c:'goal'}],
+  '2026-07-10':[{t:'Condors — pitch',c:'pitch'}],
+  '2026-08-15':[{t:'Lynx — pitch',c:'pitch'}],
+};
+const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+let calY = 2026, calM = 5;
+
+function renderCal() {
+  document.getElementById('cal-lbl').textContent = MONTHS[calM] + ' ' + calY;
+  const first = new Date(calY, calM, 1).getDay();
+  const days = new Date(calY, calM + 1, 0).getDate();
+  const today = new Date();
+  let html = '';
+  for (let i = 0; i < first; i++) html += `<div class="cday other"><div class="dn"></div></div>`;
+  for (let d = 1; d <= days; d++) {
+    const ds = calY + '-' + String(calM + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+    const evs = CAL_EVENTS[ds] || [];
+    const isToday = today.getFullYear() === calY && today.getMonth() === calM && today.getDate() === d;
+    const hasUrg = evs.some(e => e.c === 'urg');
+    html += `<div class="cday${isToday ? ' today' : ''}${hasUrg ? ' has-urg' : ''}"><div class="dn">${d}</div>${evs.map(e => `<div class="cev ${e.c}">${e.t}</div>`).join('')}</div>`;
+  }
+  document.getElementById('cal-grid').innerHTML = html;
+}
+function changeMonth(d) { calM += d; if (calM > 11) { calM = 0; calY++; } if (calM < 0) { calM = 11; calY--; } renderCal(); }
+
+// ---- INIT ----
+initAuth();
+</script>
+</body>
+</html>
