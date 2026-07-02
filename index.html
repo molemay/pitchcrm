@@ -1378,7 +1378,11 @@ async function loadFichesFromSharePoint() {
           emailOverRate:   f.EmailSurchargeRate || '',
           smsLimit:        f.SMSLimiteBillet || '',
           smsOverRate:     f.SMSSurchargeRate || '',
-          hasSurcharges:   !!(f.EmailLimiteBillet || f.SMSLimiteBillet),
+          contactLimit:    f.ContactLimite || '',
+          contactOverRate: f.ContactSurchargeRate || '',
+          contacts:        f.ContactsCRMTotal || '',
+          crmContacts:     f.ContactsCRMMigrer || '',
+          hasSurcharges:   !!(f.EmailLimiteBillet || f.SMSLimiteBillet || f.ContactLimite),
           serviceStart: f.DateDebutService ? f.DateDebutService.split('T')[0] : '',
           integrationStatus: f.StatutIntegration || '',
           tktYr: f.NbBillets || '',
@@ -1456,11 +1460,15 @@ async function saveFicheToSharePoint(deal) {
       EmailSurchargeRate: parseFloat(deal.emailOverRate) || null,
       SMSLimiteBillet: parseFloat(deal.smsLimit) || null,
       SMSSurchargeRate: parseFloat(deal.smsOverRate) || null,
+      ContactLimite: parseFloat(deal.contactLimit) || null,
+      ContactSurchargeRate: parseFloat(deal.contactOverRate) || null,
+      ContactsCRMTotal: parseInt(deal.contacts) || null,
+      ContactsCRMMigrer: parseInt(deal.crmContacts) || null,
       DateDebutService: deal.serviceStart ? deal.serviceStart + 'T00:00:00Z' : null,
       StatutIntegration: deal.integrationStatus || '',
     };
     // Champs optionnels qui peuvent ne pas exister comme colonnes SP
-    const optionalCols = ['BoutiqueCommandes', 'BoutiqueTPV'];
+    const optionalCols = ['BoutiqueCommandes', 'BoutiqueTPV', 'ContactLimite', 'ContactSurchargeRate', 'ContactsCRMTotal', 'ContactsCRMMigrer'];
 
     const doSave = async (payload) => {
       if (deal.spId) {
@@ -1793,12 +1801,30 @@ function openDrawer(dealId, defaultCol) {
     if (deal.smsSubs) document.getElementById('d-sms-subs').value = deal.smsSubs;
     if (deal.smsCamp) document.getElementById('d-sms-camp').value = deal.smsCamp;
     if (deal.webMo) document.getElementById('d-web-mo').value = deal.webMo;
+    if (deal.contacts)    { const el = document.getElementById('d-contacts');     if(el) el.value = deal.contacts; }
+    if (deal.crmContacts) { const el = document.getElementById('d-crm-contacts'); if(el) el.value = deal.crmContacts; }
     if (deal.storeVol) {
       document.getElementById('d-store-vol').value = deal.storeVol;
       const bv = document.getElementById('d-boutique-vol'); if(bv) bv.value = deal.storeVol;
     }
     if (deal.boutiqueOrders) { const el = document.getElementById('d-boutique-orders'); if(el) el.value = deal.boutiqueOrders; }
     if (deal.boutiqueTpv)    { const el = document.getElementById('d-boutique-tpv');    if(el) el.value = deal.boutiqueTpv; }
+    // Objections / points sensibles
+    if (deal.obj) document.getElementById('d-obj').value = deal.obj;
+    // Statut d'intégration & début de service
+    if (deal.integrationStatus) { const el = document.getElementById('d-integration-status'); if(el) el.value = deal.integrationStatus; }
+    if (deal.serviceStart)      { const el = document.getElementById('d-service-start');      if(el) el.value = deal.serviceStart; }
+    // Surcharges négociées
+    if (deal.hasSurcharges) {
+      setSurchargeMode(true);
+      const setV = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined && v !== '') el.value = v; };
+      setV('d-email-limit', deal.emailLimit);
+      setV('d-email-over-rate', deal.emailOverRate);
+      setV('d-sms-limit', deal.smsLimit);
+      setV('d-sms-over-rate', deal.smsOverRate);
+      setV('d-contact-limit', deal.contactLimit);
+      setV('d-contact-over-rate', deal.contactOverRate);
+    }
     // Reload tarif fields
     const t = deal.tarif || {};
     if (t.fixeAn) document.getElementById('d-tarif-fixe-an').value = t.fixeAn;
@@ -1830,7 +1856,7 @@ function openDrawer(dealId, defaultCol) {
 }
 
 function resetDrawer() {
-  ['d-team','d-supplier','d-expiry','d-start','d-owner','d-notes','d-tkt-yr','d-tkt-ev','d-scan','d-print','d-tpv','d-vol','d-nl-yr','d-contacts','d-obj',
+  ['d-team','d-supplier','d-expiry','d-start','d-owner','d-notes','d-tkt-yr','d-tkt-ev','d-scan','d-print','d-tpv','d-vol','d-nl-yr','d-contacts','d-crm-contacts','d-obj',
    'd-email-subs','d-sms-subs','d-sms-camp','d-web-mo','d-store-vol','d-boutique-vol','d-boutique-orders','d-boutique-tpv','d-service-start','d-agenda-notes','d-email-limit','d-email-over-rate','d-sms-limit','d-sms-over-rate','d-contact-limit','d-contact-over-rate',
    'd-tarif-fixe-mo','d-tarif-fixe-an','d-tarif-pct','d-tarif-store-pct','d-tarif-store-fixed','d-tarif-setup','d-tarif-nl','d-tarif-rabais','d-tarif-comman','d-tarif-comman-desc','d-tarif-notes']
   .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -1846,6 +1872,9 @@ function resetDrawer() {
   resetAgendaFields();
   setSurchargeMode(false);
   toggleBoutiqueFields(false);
+  // Décocher les radios boutique
+  const bOui = document.getElementById('d-boutique-oui'); if (bOui) bOui.checked = false;
+  const bNon = document.getElementById('d-boutique-non'); if (bNon) bNon.checked = false;
   resetTktFields();
   // Reset tkttype chips
   ['papier','custom','non'].forEach(v => {
@@ -2078,6 +2107,8 @@ function saveFiche() {
     smsSubs: document.getElementById('d-sms-subs').value,
     smsCamp: document.getElementById('d-sms-camp').value,
     webMo: document.getElementById('d-web-mo').value,
+    contacts: document.getElementById('d-contacts')?.value || '',
+    crmContacts: document.getElementById('d-crm-contacts')?.value || '',
     storeVol: document.getElementById('d-boutique-vol')?.value || '',
     boutique: togState.boutique,
     boutiqueOrders: document.getElementById('d-boutique-orders')?.value || '',
@@ -3799,10 +3830,12 @@ function parseSPNum(v) {
 }
 
 
-// ---- AUTO-REFRESH SHAREPOINT (toutes les 5 minutes) ----
+// ---- AUTO-REFRESH SHAREPOINT (toutes les 2 minutes) ----
 function startAutoRefresh() {
   setInterval(async () => {
-    // Reset spLoaded pour permettre un rechargement
+    // Ne pas rafraîchir pendant qu'une fiche est en cours d'édition
+    const drawerOpen = document.getElementById('drawer')?.classList.contains('open');
+    if (drawerOpen) return;
     spLoaded = false;
     await loadFichesFromSharePoint();
     await loadMetaFromSP();
