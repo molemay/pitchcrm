@@ -785,9 +785,22 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
               </div>
               <div style="height:1px;background:var(--border);margin:12px 0"></div>
             <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;display:flex;align-items:center;gap:6px"><i class="ti ti-settings" style="font-size:14px"></i> Hypothèses de coûts unitaires (Stadli)</div>
-              <div class="frow">
-                <div class="field"><label>Stripe % (négocié)</label><div class="prefix-wrap"><span class="prefix">%</span><input type="text" inputmode="decimal" id="calc-stripe-pct" value="2.4" oninput="runCalc()"/></div></div>
-                <div class="field"><label>Stripe fixe / commande ($)</label><div class="prefix-wrap"><span class="prefix">$</span><input type="text" inputmode="decimal" id="calc-stripe-fixed" value="0.25" oninput="runCalc()"/></div></div>
+              <!-- STRIPE — CONTRAT IC+ -->
+              <div style="background:var(--surface2);border-radius:var(--r);padding:10px 12px;margin-bottom:10px">
+                <div style="font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Stripe — Contrat IC+ (tiers progressifs / mois)</div>
+                <div style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-bottom:8px">≤300k : 0.790% + 0.20$ · 300-800k : 0.650% + 0.18$ · >800k : 0.450% + 0.15$</div>
+                <div class="frow">
+                  <div class="field"><label style="display:flex;align-items:center;gap:4px">Interchange + réseau (%) <span title="Coût réseau (interchange Visa/MC + frais de schéma) refacturé au coût par Stripe. Estimé marché canadien pour vente en ligne (card-not-present) : ~1.4% interchange + ~0.10% schéma" style="cursor:help;color:var(--text3);font-size:12px">ⓘ</span></label><div class="prefix-wrap"><span class="prefix">%</span><input type="text" inputmode="decimal" id="calc-network-pct" value="1.50" oninput="runCalc()"/></div></div>
+                  <div class="field"><label>Réseau fixe / transac ($)</label><div class="prefix-wrap"><span class="prefix">$</span><input type="text" inputmode="decimal" id="calc-network-fixed" value="0.05" oninput="runCalc()"/></div></div>
+                </div>
+                <div class="frow">
+                  <div class="field"><label style="display:flex;align-items:center;gap:4px">Radar / transac ($) <span title="Stripe Radar (anti-fraude) : 0.06$ par événement filtré, selon contrat" style="cursor:help;color:var(--text3);font-size:12px">ⓘ</span></label><div class="prefix-wrap"><span class="prefix">$</span><input type="text" inputmode="decimal" id="calc-radar" value="0.06" oninput="runCalc()"/></div></div>
+                  <div class="field"><label style="display:flex;align-items:center;gap:4px">Nb terminaux (TPV) <span title="Terminal Use Fee : 5$/mois par lecteur actif (BBPOS WisePOS E), selon contrat. Auto-rempli depuis la fiche (TPV billetterie + boutique)" style="cursor:help;color:var(--text3);font-size:12px">ⓘ</span></label><input type="number" id="calc-tpv-count" value="0" oninput="runCalc()"/></div>
+                </div>
+                <div class="frow">
+                  <div class="field"><label style="display:flex;align-items:center;gap:4px">Connect volume (%) <span title="Account Volume Fee : 0.220% sur le volume versé aux comptes connectés (payouts), selon contrat" style="cursor:help;color:var(--text3);font-size:12px">ⓘ</span></label><div class="prefix-wrap"><span class="prefix">%</span><input type="text" inputmode="decimal" id="calc-connect-pct" value="0.22" oninput="runCalc()"/></div></div>
+                  <div class="field"><label style="display:flex;align-items:center;gap:4px">Connect fixe / mois ($) <span title="2$/mois compte actif + 4 virements hebdo × 0.25$ = 3$/mois par client, selon contrat" style="cursor:help;color:var(--text3);font-size:12px">ⓘ</span></label><div class="prefix-wrap"><span class="prefix">$</span><input type="text" inputmode="decimal" id="calc-connect-fixed-mo" value="3.00" oninput="runCalc()"/></div></div>
+                </div>
               </div>
               <div class="frow">
                 <div class="field"><label>Coût / courriel ($)</label><div class="prefix-wrap"><span class="prefix">$</span><input type="text" inputmode="decimal" id="calc-c-email" value="0.0007" oninput="runCalc()"/></div></div>
@@ -2607,6 +2620,9 @@ function calcLoadProspect() {
     if (t.rabais)     parts.push('Rabais : ' + parseFloat(t.rabais).toLocaleString('fr-CA') + '$');
     if (note) { note.textContent = parts.join(' · '); note.style.display = 'block'; }
   }
+  // Nb terminaux : TPV billetterie + TPV boutique depuis la fiche
+  const tpvTotal = (parseInt(d.nbTPV) || 0) + (parseInt(d.boutiqueTpv) || 0);
+  if (tpvTotal > 0) setVal('calc-tpv-count', tpvTotal);
   // Surcharges négociées → affiche section si la fiche en a
   const sc = getSurchargeSettings(d);
   const hasCustomSurcharges = d.hasSurcharges || d.emailLimit || d.smsLimit;
@@ -2643,8 +2659,13 @@ function runCalc() {
 
   // Unit costs
   const parseNum = (v, def=0) => { const n=parseFloat(String(v||'').replace(',','.')); return isNaN(n)?def:n; };
-  const stripePct   = (parseFloat(document.getElementById('calc-stripe-pct')?.value) || 2.4) / 100;
-  const stripeFixed = parseFloat(document.getElementById('calc-stripe-fixed')?.value) || 0.25;
+  // --- Stripe contrat IC+ ---
+  const networkPct    = parseNum(document.getElementById('calc-network-pct')?.value, 1.50) / 100;
+  const networkFixed  = parseNum(document.getElementById('calc-network-fixed')?.value, 0.05);
+  const radarFee      = parseNum(document.getElementById('calc-radar')?.value, 0.06);
+  const tpvCount      = parseNum(document.getElementById('calc-tpv-count')?.value, 0);
+  const connectPct    = parseNum(document.getElementById('calc-connect-pct')?.value, 0.22) / 100;
+  const connectFixedMo= parseNum(document.getElementById('calc-connect-fixed-mo')?.value, 3.00);
   const cEmail      = parseFloat(document.getElementById('calc-c-email')?.value) || 0.0007;
   const cSms        = parseFloat(document.getElementById('calc-c-sms')?.value) || 0.0083;
   const infra       = parseFloat(document.getElementById('calc-infra')?.value) || 40;
@@ -2662,19 +2683,42 @@ function runCalc() {
   const ticketOrders = txnVol > 0 && avgTktPrice > 0 ? txnVol / avgTktPrice : tickets;
   // Boutique : si on a le nb de commandes réel depuis la fiche, sinon estimation
   const storeOrders  = storeVol > 0 ? storeVol / 60 : 0; // panier moyen boutique ~60$
+  const totalOrders  = ticketOrders + storeOrders;
+  const totalVolume  = txnVol + storeVol;
 
-  // Stripe split by source (depends on actual volume per source)
-  const costStripeBillets  = (txnVol * stripePct) + (ticketOrders * stripeFixed);
-  const costStripeBoutique = (storeVol * stripePct) + (storeOrders * stripeFixed);
+  // --- Stripe IC+ : tiers progressifs sur le volume carte mensuel ---
+  // Contrat : ≤300k → 0.790% + 0.20$ · 300-800k → 0.650% + 0.18$ · >800k → 0.450% + 0.15$
+  const monthlyVol = totalVolume / 12;
+  const t1Vol = Math.min(monthlyVol, 300000);
+  const t2Vol = Math.min(Math.max(monthlyVol - 300000, 0), 500000);
+  const t3Vol = Math.max(monthlyVol - 800000, 0);
+  const stripeMarginPctMo = (t1Vol * 0.00790) + (t2Vol * 0.00650) + (t3Vol * 0.00450);
+  const stripeEffPct = monthlyVol > 0 ? stripeMarginPctMo / monthlyVol : 0.00790;
+  // Frais fixe pondéré selon la part de volume par tier
+  const stripeEffFixed = monthlyVol > 0
+    ? (t1Vol * 0.20 + t2Vol * 0.18 + t3Vol * 0.15) / monthlyVol
+    : 0.20;
+
+  const costNetwork      = (totalVolume * networkPct) + (totalOrders * networkFixed);
+  const costStripeMargin = (totalVolume * stripeEffPct) + (totalOrders * stripeEffFixed);
+  const costRadar        = totalOrders * radarFee;
+  const costTerminal     = tpvCount * 5.00 * 12; // Terminal Use Fee 5$/mois/lecteur
+  // Connect : volume versé au client ≈ volume brut (les frais Stadli sont marginaux)
+  const costConnect      = (totalVolume * connectPct) + (connectFixedMo * 12);
+  const costStripe       = costNetwork + costStripeMargin + costRadar + costTerminal + costConnect;
+
+  // Répartition proportionnelle par source (pour affichage seulement — les tiers s'appliquent au total)
+  const volShareBillets = totalVolume > 0 ? txnVol / totalVolume : 1;
+  const costStripeBillets  = costStripe * volShareBillets;
+  const costStripeBoutique = costStripe * (1 - volShareBillets);
 
   // Email & SMS: single total cost — not split by source (same rate regardless)
-  const txEmails = (ticketOrders + storeOrders) * txEmailR;
-  const txSms    = (ticketOrders + storeOrders) * txSmsR;
+  const txEmails = totalOrders * txEmailR;
+  const txSms    = totalOrders * txSmsR;
   const costEmail = (mktEmails + txEmails) * cEmail;
   const costSms   = (mktSms + txSms) * cSms;
 
   const costInfra   = infra * 12;
-  const costStripe  = costStripeBillets + costStripeBoutique;
   const totalCost   = costStripe + costEmail + costSms + costInfra;
 
   // --- Revenue (Stadli pricing) ---
@@ -2762,10 +2806,13 @@ function runCalc() {
   // --- Cost breakdown ---
   const costSections = [
     {
-      title: 'Stripe (paiements)',
+      title: 'Stripe — Contrat IC+',
       rows: [
-        { label: 'Billetterie', note: `${Math.round(ticketOrders).toLocaleString()} commandes${avgTktPrice > 0 ? ` · prix moy. ${Math.round(avgTktPrice)}$/billet` : ''} · ${Math.round(txnVol).toLocaleString()}$ de volume`, val: costStripeBillets },
-        ...(storeVol > 0 ? [{ label: 'Boutique souvenir', note: `${Math.round(storeOrders).toLocaleString()} commandes estimées · ${$(storeVol)} de ventes`, val: costStripeBoutique }] : []),
+        { label: 'Interchange + réseau', note: `${(networkPct*100).toFixed(2)}% + ${networkFixed.toFixed(2)}$ × ${Math.round(totalOrders).toLocaleString()} transac`, val: costNetwork },
+        { label: 'Marge Stripe IC+ (tiers)', note: `taux effectif ${(stripeEffPct*100).toFixed(3)}% + ${stripeEffFixed.toFixed(2)}$/transac · vol. ${Math.round(monthlyVol/1000)}k$/mois`, val: costStripeMargin },
+        { label: 'Radar (anti-fraude)', note: `${radarFee.toFixed(2)}$ × ${Math.round(totalOrders).toLocaleString()} transac`, val: costRadar },
+        ...(tpvCount > 0 ? [{ label: 'Terminaux (TPV)', note: `${tpvCount} lecteur${tpvCount>1?'s':''} × 5$/mois`, val: costTerminal }] : []),
+        { label: 'Connect (payouts)', note: `${(connectPct*100).toFixed(2)}% du volume + ${connectFixedMo.toFixed(2)}$/mois (4 virements hebdo)`, val: costConnect },
       ],
       subtotal: costStripe
     },
@@ -3715,7 +3762,9 @@ function tarifRecalc() {
 
 function initCalcDefaults() {
   const D = [
-    ['calc-stripe-pct','2.4'], ['calc-stripe-fixed','0.25'],
+    ['calc-network-pct','1.50'], ['calc-network-fixed','0.05'],
+    ['calc-radar','0.06'], ['calc-tpv-count','0'],
+    ['calc-connect-pct','0.22'], ['calc-connect-fixed-mo','3.00'],
     ['calc-c-email','0.0007'], ['calc-c-sms','0.0083'],
     ['calc-stadli-pct','2.5'], ['calc-stadli-store-pct','2.5'], ['calc-stadli-fixed','1.00'],
     ['calc-base-fee-stadli','149'], ['calc-base-fee','149'],
