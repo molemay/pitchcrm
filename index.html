@@ -785,21 +785,45 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
               </div>
               <div style="height:1px;background:var(--border);margin:12px 0"></div>
             <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;display:flex;align-items:center;gap:6px"><i class="ti ti-settings" style="font-size:14px"></i> Hypothèses de coûts unitaires (Stadli)</div>
-              <!-- STRIPE — CONTRAT IC+ -->
+              <!-- STRIPE — TAUX CHARGÉS DEPUIS SHAREPOINT -->
               <div style="background:var(--surface2);border-radius:var(--r);padding:10px 12px;margin-bottom:10px">
-                <div style="font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Stripe — Contrat IC+ (tiers progressifs / mois)</div>
-                <div style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-bottom:8px">≤300k : 0.790% + 0.20$ · 300-800k : 0.650% + 0.18$ · >800k : 0.450% + 0.15$</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                  <div style="font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.05em">Stripe — Coûts de traitement</div>
+                  <button type="button" onclick="toggleStripeCfg()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;display:flex;align-items:center;gap:3px;font-family:inherit"><i class="ti ti-settings"></i> Configurer</button>
+                </div>
+                <div id="stripe-tiers-display" style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-bottom:8px">Taux standards (2.9% + 0.30$) — configure les taux négociés ⚙</div>
                 <div class="frow">
-                  <div class="field"><label style="display:flex;align-items:center;gap:4px">Interchange + réseau (%) <span title="Coût réseau (interchange Visa/MC + frais de schéma) refacturé au coût par Stripe. Estimé marché canadien pour vente en ligne (card-not-present) : ~1.4% interchange + ~0.10% schéma" style="cursor:help;color:var(--text3);font-size:12px">ⓘ</span></label><div class="prefix-wrap"><span class="prefix">%</span><input type="text" inputmode="decimal" id="calc-network-pct" value="1.50" oninput="runCalc()"/></div></div>
-                  <div class="field"><label>Réseau fixe / transac ($)</label><div class="prefix-wrap"><span class="prefix">$</span><input type="text" inputmode="decimal" id="calc-network-fixed" value="0.05" oninput="runCalc()"/></div></div>
+                  <div class="field"><label style="display:flex;align-items:center;gap:4px">Interchange + réseau (%) <span title="Coût réseau (interchange + frais de schéma) refacturé au coût. Estimé marché canadien vente en ligne : ~1.5%. Mettre 0 si le taux Stripe est tout inclus." style="cursor:help;color:var(--text3);font-size:12px">ⓘ</span></label><div class="prefix-wrap"><span class="prefix">%</span><input type="text" inputmode="decimal" id="calc-network-pct" placeholder="0" oninput="runCalc()"/></div></div>
+                  <div class="field"><label>Réseau fixe / transac ($)</label><div class="prefix-wrap"><span class="prefix">$</span><input type="text" inputmode="decimal" id="calc-network-fixed" placeholder="0" oninput="runCalc()"/></div></div>
                 </div>
                 <div class="frow">
-                  <div class="field"><label style="display:flex;align-items:center;gap:4px">Radar / transac ($) <span title="Stripe Radar (anti-fraude) : 0.06$ par événement filtré, selon contrat" style="cursor:help;color:var(--text3);font-size:12px">ⓘ</span></label><div class="prefix-wrap"><span class="prefix">$</span><input type="text" inputmode="decimal" id="calc-radar" value="0.06" oninput="runCalc()"/></div></div>
-                  <div class="field"><label style="display:flex;align-items:center;gap:4px">Nb terminaux (TPV) <span title="Terminal Use Fee : 5$/mois par lecteur actif (BBPOS WisePOS E), selon contrat. Auto-rempli depuis la fiche (TPV billetterie + boutique)" style="cursor:help;color:var(--text3);font-size:12px">ⓘ</span></label><input type="number" id="calc-tpv-count" value="0" oninput="runCalc()"/></div>
+                  <div class="field"><label style="display:flex;align-items:center;gap:4px">Radar / transac ($) <span title="Frais anti-fraude par transaction filtrée" style="cursor:help;color:var(--text3);font-size:12px">ⓘ</span></label><div class="prefix-wrap"><span class="prefix">$</span><input type="text" inputmode="decimal" id="calc-radar" placeholder="0" oninput="runCalc()"/></div></div>
+                  <div class="field"><label style="display:flex;align-items:center;gap:4px">Nb terminaux (TPV) <span title="Frais mensuel par lecteur actif — auto-rempli depuis la fiche (TPV billetterie + boutique)" style="cursor:help;color:var(--text3);font-size:12px">ⓘ</span></label><input type="number" id="calc-tpv-count" value="0" oninput="runCalc()"/></div>
                 </div>
                 <div class="frow">
-                  <div class="field"><label style="display:flex;align-items:center;gap:4px">Connect volume (%) <span title="Account Volume Fee : 0.220% sur le volume versé aux comptes connectés (payouts), selon contrat" style="cursor:help;color:var(--text3);font-size:12px">ⓘ</span></label><div class="prefix-wrap"><span class="prefix">%</span><input type="text" inputmode="decimal" id="calc-connect-pct" value="0.22" oninput="runCalc()"/></div></div>
-                  <div class="field"><label style="display:flex;align-items:center;gap:4px">Connect fixe / mois ($) <span title="2$/mois compte actif + 4 virements hebdo × 0.25$ = 3$/mois par client, selon contrat" style="cursor:help;color:var(--text3);font-size:12px">ⓘ</span></label><div class="prefix-wrap"><span class="prefix">$</span><input type="text" inputmode="decimal" id="calc-connect-fixed-mo" value="3.00" oninput="runCalc()"/></div></div>
+                  <div class="field"><label style="display:flex;align-items:center;gap:4px">Connect volume (%) <span title="Frais sur le volume versé aux comptes connectés (payouts)" style="cursor:help;color:var(--text3);font-size:12px">ⓘ</span></label><div class="prefix-wrap"><span class="prefix">%</span><input type="text" inputmode="decimal" id="calc-connect-pct" placeholder="0" oninput="runCalc()"/></div></div>
+                  <div class="field"><label style="display:flex;align-items:center;gap:4px">Connect fixe / mois ($) <span title="Compte actif + virements (ex : 4 virements hebdo)" style="cursor:help;color:var(--text3);font-size:12px">ⓘ</span></label><div class="prefix-wrap"><span class="prefix">$</span><input type="text" inputmode="decimal" id="calc-connect-fixed-mo" placeholder="0" oninput="runCalc()"/></div></div>
+                </div>
+                <!-- Panneau config des tiers (sauvegardé dans SharePoint, pas dans le code) -->
+                <div id="stripe-cfg-panel" style="display:none;border-top:1px solid var(--border);margin-top:8px;padding-top:10px">
+                  <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Tiers IC+ négociés (% + fixe/transac, progressif sur volume mensuel)</div>
+                  <div class="frow">
+                    <div class="field"><label>Tier 1 : jusqu'à ($/mois)</label><input type="number" id="cfg-t1-limit" placeholder="seuil 1 ($/mois)"/></div>
+                    <div class="field"><label>Tier 1 : % + fixe</label><div style="display:flex;gap:6px"><input type="text" inputmode="decimal" id="cfg-t1-pct" placeholder="%" style="width:50%"/><input type="text" inputmode="decimal" id="cfg-t1-fixed" placeholder="$" style="width:50%"/></div></div>
+                  </div>
+                  <div class="frow">
+                    <div class="field"><label>Tier 2 : jusqu'à ($/mois)</label><input type="number" id="cfg-t2-limit" placeholder="seuil 2 ($/mois)"/></div>
+                    <div class="field"><label>Tier 2 : % + fixe</label><div style="display:flex;gap:6px"><input type="text" inputmode="decimal" id="cfg-t2-pct" placeholder="%" style="width:50%"/><input type="text" inputmode="decimal" id="cfg-t2-fixed" placeholder="$" style="width:50%"/></div></div>
+                  </div>
+                  <div class="frow">
+                    <div class="field"><label>Tier 3 : au-delà</label><div style="font-size:11px;color:var(--text3);padding-top:8px">(sans limite)</div></div>
+                    <div class="field"><label>Tier 3 : % + fixe</label><div style="display:flex;gap:6px"><input type="text" inputmode="decimal" id="cfg-t3-pct" placeholder="%" style="width:50%"/><input type="text" inputmode="decimal" id="cfg-t3-fixed" placeholder="$" style="width:50%"/></div></div>
+                  </div>
+                  <div class="frow">
+                    <div class="field"><label>Terminal / lecteur / mois ($)</label><input type="text" inputmode="decimal" id="cfg-terminal-mo" placeholder="$/mois"/></div>
+                    <div class="field" style="display:flex;align-items:flex-end"><button type="button" class="btn primary" onclick="saveStripeCfg()" style="width:100%"><i class="ti ti-device-floppy"></i> Enregistrer dans SharePoint</button></div>
+                  </div>
+                  <div style="font-size:10px;color:var(--text3);margin-top:4px"><i class="ti ti-lock"></i> Ces taux sont stockés dans la liste SharePoint (protégés par l'authentification), jamais dans le code public.</div>
                 </div>
               </div>
               <div class="frow">
@@ -1780,20 +1804,18 @@ function openDrawer(dealId, defaultCol) {
       setT('d-tkt-unitaire',       td.unitaireQty);
       setT('d-tkt-unitaire-vol',   td.unitaireVol);
       setT('d-tkt-unitaire-price', td.unitairePrice);
-      setT('d-tkt-unitaire-rate',  td.unitaireRate);
-      setT('d-tkt-unitaire-type',  td.unitaireType);
+      setT('d-tkt-unitaire-pct',   td.unitairePct);
+      setT('d-tkt-unitaire-fixed', td.unitaireFixed);
       setT('d-tkt-saison',         td.saisonQty);
       setT('d-tkt-saison-vol',     td.saisonVol);
       setT('d-tkt-saison-price',   td.saisonPrice);
-      setT('d-tkt-saison-pct',   td.saisonPct);
-      setT('d-tkt-saison-fixed', td.saisonFixed);
-      setT('d-tkt-saison-type',    td.saisonType);
+      setT('d-tkt-saison-pct',     td.saisonPct);
+      setT('d-tkt-saison-fixed',   td.saisonFixed);
       setT('d-tkt-bundle',         td.bundleQty);
       setT('d-tkt-bundle-vol',     td.bundleVol);
       setT('d-tkt-bundle-price',   td.bundlePrice);
-      setT('d-tkt-bundle-pct',   td.bundlePct);
-      setT('d-tkt-bundle-fixed', td.bundleFixed);
-      setT('d-tkt-bundle-type',    td.bundleType);
+      setT('d-tkt-bundle-pct',     td.bundlePct);
+      setT('d-tkt-bundle-fixed',   td.bundleFixed);
       if (deal.vol) document.getElementById('d-vol').value = deal.vol;
       updateTktTotal();
       refreshTarifTktSummary();
@@ -2528,6 +2550,91 @@ const togState = {boutique:null,tkttype:null};
 let currentDealId = null;
 let dragId = null;
 
+// ---- CONFIG STRIPE (chargée depuis SharePoint — jamais de taux négociés dans le code) ----
+// Repli : tarification publique standard de Stripe (info publique)
+let STRIPE_CFG = {
+  tiers: [{ limit: null, pct: 2.9, fixed: 0.30 }], // taux publics par défaut
+  networkPct: 0, networkFixed: 0,   // 0 = inclus dans le taux public tout-compris
+  radar: 0, terminalMo: 0,
+  connectPct: 0, connectFixedMo: 0
+};
+let stripeCfgLoaded = false;
+
+function toggleStripeCfg() {
+  const p = document.getElementById('stripe-cfg-panel');
+  if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+function applyStripeCfg() {
+  const c = STRIPE_CFG;
+  const setV = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined && v !== null) el.value = v; };
+  // Champs du calculateur
+  setV('calc-network-pct', c.networkPct);
+  setV('calc-network-fixed', c.networkFixed);
+  setV('calc-radar', c.radar);
+  setV('calc-connect-pct', c.connectPct);
+  setV('calc-connect-fixed-mo', c.connectFixedMo);
+  // Champs du panneau config
+  const t = c.tiers || [];
+  setV('cfg-t1-limit', t[0]?.limit); setV('cfg-t1-pct', t[0]?.pct); setV('cfg-t1-fixed', t[0]?.fixed);
+  setV('cfg-t2-limit', t[1]?.limit); setV('cfg-t2-pct', t[1]?.pct); setV('cfg-t2-fixed', t[1]?.fixed);
+  setV('cfg-t3-pct', t[2]?.pct);     setV('cfg-t3-fixed', t[2]?.fixed);
+  setV('cfg-terminal-mo', c.terminalMo);
+  // Ligne d'affichage des tiers
+  const disp = document.getElementById('stripe-tiers-display');
+  if (disp) {
+    if (stripeCfgLoaded && t.length > 1) {
+      const fmt = (x) => x.limit ? `≤${Math.round(x.limit/1000)}k : ${x.pct}% + ${x.fixed}$` : `>: ${x.pct}% + ${x.fixed}$`;
+      disp.textContent = t.map(fmt).join(' · ') + ' (progressif/mois)';
+    } else if (stripeCfgLoaded) {
+      disp.textContent = `Taux configuré : ${t[0]?.pct}% + ${t[0]?.fixed}$`;
+    }
+  }
+  if (typeof runCalc === 'function') runCalc();
+}
+
+function saveStripeCfg() {
+  const num = (id, def=0) => { const v = parseFloat(String(document.getElementById(id)?.value||'').replace(',','.')); return isNaN(v) ? def : v; };
+  const cfg = {
+    tiers: [],
+    networkPct: num('calc-network-pct'),
+    networkFixed: num('calc-network-fixed'),
+    radar: num('calc-radar'),
+    terminalMo: num('cfg-terminal-mo'),
+    connectPct: num('calc-connect-pct'),
+    connectFixedMo: num('calc-connect-fixed-mo'),
+  };
+  const t1p = num('cfg-t1-pct'), t2p = num('cfg-t2-pct'), t3p = num('cfg-t3-pct');
+  if (t1p > 0) cfg.tiers.push({ limit: num('cfg-t1-limit') || null, pct: t1p, fixed: num('cfg-t1-fixed') });
+  if (t2p > 0) cfg.tiers.push({ limit: num('cfg-t2-limit') || null, pct: t2p, fixed: num('cfg-t2-fixed') });
+  if (t3p > 0) cfg.tiers.push({ limit: null, pct: t3p, fixed: num('cfg-t3-fixed') });
+  if (cfg.tiers.length === 0) cfg.tiers = [{ limit: null, pct: 2.9, fixed: 0.30 }];
+  STRIPE_CFG = cfg;
+  stripeCfgLoaded = true;
+  applyStripeCfg();
+  saveMetaToSP('config', 'config_stripe', cfg);
+  showNotif('✓ Taux Stripe enregistrés dans SharePoint');
+  toggleStripeCfg();
+}
+
+// Coût Stripe progressif selon les tiers configurés (sur volume mensuel)
+function stripeTierEffective(monthlyVol) {
+  const tiers = STRIPE_CFG.tiers || [{ limit: null, pct: 2.9, fixed: 0.30 }];
+  if (monthlyVol <= 0) return { effPct: (tiers[0].pct||0)/100, effFixed: tiers[0].fixed||0 };
+  let remaining = monthlyVol, prevLimit = 0, pctCost = 0, fixedWeighted = 0;
+  for (const t of tiers) {
+    const cap = t.limit ? Math.max(t.limit - prevLimit, 0) : Infinity;
+    const slice = Math.min(remaining, cap);
+    if (slice <= 0) { prevLimit = t.limit || prevLimit; continue; }
+    pctCost       += slice * (t.pct || 0) / 100;
+    fixedWeighted += slice * (t.fixed || 0);
+    remaining -= slice;
+    prevLimit = t.limit || prevLimit;
+    if (remaining <= 0) break;
+  }
+  return { effPct: pctCost / monthlyVol, effFixed: fixedWeighted / monthlyVol };
+}
+
 let ASSETS = {};
 
 let ASSETS_TYPES = ['Design','Prototype','Document','Pitch','Autre'];
@@ -2659,13 +2766,14 @@ function runCalc() {
 
   // Unit costs
   const parseNum = (v, def=0) => { const n=parseFloat(String(v||'').replace(',','.')); return isNaN(n)?def:n; };
-  // --- Stripe contrat IC+ ---
-  const networkPct    = parseNum(document.getElementById('calc-network-pct')?.value, 1.50) / 100;
-  const networkFixed  = parseNum(document.getElementById('calc-network-fixed')?.value, 0.05);
-  const radarFee      = parseNum(document.getElementById('calc-radar')?.value, 0.06);
+  // --- Stripe : champs alimentés par la config SharePoint (STRIPE_CFG) ---
+  const networkPct    = parseNum(document.getElementById('calc-network-pct')?.value, STRIPE_CFG.networkPct) / 100;
+  const networkFixed  = parseNum(document.getElementById('calc-network-fixed')?.value, STRIPE_CFG.networkFixed);
+  const radarFee      = parseNum(document.getElementById('calc-radar')?.value, STRIPE_CFG.radar);
   const tpvCount      = parseNum(document.getElementById('calc-tpv-count')?.value, 0);
-  const connectPct    = parseNum(document.getElementById('calc-connect-pct')?.value, 0.22) / 100;
-  const connectFixedMo= parseNum(document.getElementById('calc-connect-fixed-mo')?.value, 3.00);
+  const connectPct    = parseNum(document.getElementById('calc-connect-pct')?.value, STRIPE_CFG.connectPct) / 100;
+  const connectFixedMo= parseNum(document.getElementById('calc-connect-fixed-mo')?.value, STRIPE_CFG.connectFixedMo);
+  const terminalMo    = STRIPE_CFG.terminalMo || 0;
   const cEmail      = parseFloat(document.getElementById('calc-c-email')?.value) || 0.0007;
   const cSms        = parseFloat(document.getElementById('calc-c-sms')?.value) || 0.0083;
   const infra       = parseFloat(document.getElementById('calc-infra')?.value) || 40;
@@ -2686,23 +2794,16 @@ function runCalc() {
   const totalOrders  = ticketOrders + storeOrders;
   const totalVolume  = txnVol + storeVol;
 
-  // --- Stripe IC+ : tiers progressifs sur le volume carte mensuel ---
-  // Contrat : ≤300k → 0.790% + 0.20$ · 300-800k → 0.650% + 0.18$ · >800k → 0.450% + 0.15$
+  // --- Stripe : tiers progressifs configurés (SharePoint) sur le volume carte mensuel ---
   const monthlyVol = totalVolume / 12;
-  const t1Vol = Math.min(monthlyVol, 300000);
-  const t2Vol = Math.min(Math.max(monthlyVol - 300000, 0), 500000);
-  const t3Vol = Math.max(monthlyVol - 800000, 0);
-  const stripeMarginPctMo = (t1Vol * 0.00790) + (t2Vol * 0.00650) + (t3Vol * 0.00450);
-  const stripeEffPct = monthlyVol > 0 ? stripeMarginPctMo / monthlyVol : 0.00790;
-  // Frais fixe pondéré selon la part de volume par tier
-  const stripeEffFixed = monthlyVol > 0
-    ? (t1Vol * 0.20 + t2Vol * 0.18 + t3Vol * 0.15) / monthlyVol
-    : 0.20;
+  const tierEff = stripeTierEffective(monthlyVol);
+  const stripeEffPct   = tierEff.effPct;
+  const stripeEffFixed = tierEff.effFixed;
 
   const costNetwork      = (totalVolume * networkPct) + (totalOrders * networkFixed);
   const costStripeMargin = (totalVolume * stripeEffPct) + (totalOrders * stripeEffFixed);
   const costRadar        = totalOrders * radarFee;
-  const costTerminal     = tpvCount * 5.00 * 12; // Terminal Use Fee 5$/mois/lecteur
+  const costTerminal     = tpvCount * terminalMo * 12;
   // Connect : volume versé au client ≈ volume brut (les frais Stadli sont marginaux)
   const costConnect      = (totalVolume * connectPct) + (connectFixedMo * 12);
   const costStripe       = costNetwork + costStripeMargin + costRadar + costTerminal + costConnect;
@@ -2806,13 +2907,13 @@ function runCalc() {
   // --- Cost breakdown ---
   const costSections = [
     {
-      title: 'Stripe — Contrat IC+',
+      title: 'Stripe (paiements)',
       rows: [
-        { label: 'Interchange + réseau', note: `${(networkPct*100).toFixed(2)}% + ${networkFixed.toFixed(2)}$ × ${Math.round(totalOrders).toLocaleString()} transac`, val: costNetwork },
-        { label: 'Marge Stripe IC+ (tiers)', note: `taux effectif ${(stripeEffPct*100).toFixed(3)}% + ${stripeEffFixed.toFixed(2)}$/transac · vol. ${Math.round(monthlyVol/1000)}k$/mois`, val: costStripeMargin },
-        { label: 'Radar (anti-fraude)', note: `${radarFee.toFixed(2)}$ × ${Math.round(totalOrders).toLocaleString()} transac`, val: costRadar },
-        ...(tpvCount > 0 ? [{ label: 'Terminaux (TPV)', note: `${tpvCount} lecteur${tpvCount>1?'s':''} × 5$/mois`, val: costTerminal }] : []),
-        { label: 'Connect (payouts)', note: `${(connectPct*100).toFixed(2)}% du volume + ${connectFixedMo.toFixed(2)}$/mois (4 virements hebdo)`, val: costConnect },
+        ...(costNetwork > 0 ? [{ label: 'Interchange + réseau', note: `${(networkPct*100).toFixed(2)}% + ${networkFixed.toFixed(2)}$ × ${Math.round(totalOrders).toLocaleString()} transac`, val: costNetwork }] : []),
+        { label: costNetwork > 0 ? 'Marge Stripe (tiers)' : 'Frais Stripe', note: `taux effectif ${(stripeEffPct*100).toFixed(3)}% + ${stripeEffFixed.toFixed(2)}$/transac · vol. ${Math.round(monthlyVol/1000)}k$/mois`, val: costStripeMargin },
+        ...(costRadar > 0 ? [{ label: 'Radar (anti-fraude)', note: `${radarFee.toFixed(2)}$ × ${Math.round(totalOrders).toLocaleString()} transac`, val: costRadar }] : []),
+        ...(costTerminal > 0 ? [{ label: 'Terminaux (TPV)', note: `${tpvCount} lecteur${tpvCount>1?'s':''} × ${terminalMo.toFixed(2)}$/mois`, val: costTerminal }] : []),
+        ...(costConnect > 0 ? [{ label: 'Connect (payouts)', note: `${(connectPct*100).toFixed(2)}% du volume + ${connectFixedMo.toFixed(2)}$/mois`, val: costConnect }] : []),
       ],
       subtotal: costStripe
     },
@@ -3297,6 +3398,10 @@ async function loadMetaFromSP() {
             CAL_EVENTS_DYNAMIC[date].push(parsed);
         } else if (f.TypeMeta === 'objectif') {
           if (!OBJECTIFS.find(o => o.id === f.Title)) OBJECTIFS.push(parsed);
+        } else if (f.TypeMeta === 'config' && f.Title === 'config_stripe') {
+          STRIPE_CFG = Object.assign({}, STRIPE_CFG, parsed);
+          stripeCfgLoaded = true;
+          applyStripeCfg();
         }
       } catch(e) {}
     });
@@ -3762,9 +3867,6 @@ function tarifRecalc() {
 
 function initCalcDefaults() {
   const D = [
-    ['calc-network-pct','1.50'], ['calc-network-fixed','0.05'],
-    ['calc-radar','0.06'], ['calc-tpv-count','0'],
-    ['calc-connect-pct','0.22'], ['calc-connect-fixed-mo','3.00'],
     ['calc-c-email','0.0007'], ['calc-c-sms','0.0083'],
     ['calc-stadli-pct','2.5'], ['calc-stadli-store-pct','2.5'], ['calc-stadli-fixed','1.00'],
     ['calc-base-fee-stadli','149'], ['calc-base-fee','149'],
@@ -3774,6 +3876,8 @@ function initCalcDefaults() {
     const el = document.getElementById(id);
     if (el && el.value === '') el.value = val;
   });
+  // Les taux Stripe viennent de SharePoint (config_stripe) — repli : taux publics
+  applyStripeCfg();
 }
 
 
