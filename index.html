@@ -1067,7 +1067,31 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
           </div>
           <div class="frow" style="margin-top:8px">
             <div class="field"><label>Billets / événement</label><input type="number" id="d-tkt-ev" placeholder="ex : 800"/></div>
+            <div class="field"><label>Nb de commandes billetterie / an</label><input type="number" id="d-tkt-orders" placeholder="ex : 45 000" oninput="onFieldChange()"/></div>
+          </div>
+          <div class="frow">
+            <div class="field"><label>% billets de faveur / gratuités</label><div class="prefix-wrap"><span class="prefix">%</span><input type="text" inputmode="decimal" id="d-comps-pct" placeholder="ex : 8"/></div></div>
+            <div class="field"><label>Saisonnalité — mois d'activité</label><input type="text" id="d-saison-mois" placeholder="ex : sept à avril"/></div>
+          </div>
+          <div class="frow">
             <div class="field"><label>Objections / points sensibles</label><textarea id="d-obj" placeholder="ex : Attachés mais ouverts si prix compétitif..."></textarea></div>
+          </div>
+
+          <!-- Produits & paiement -->
+          <div style="margin-top:8px;padding:12px 14px;background:var(--surface2);border-radius:var(--r);margin-bottom:8px">
+            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px"><i class="ti ti-gift" style="font-size:13px"></i> Produits & paiement</div>
+            <div class="frow">
+              <div class="field"><label>Plans de paiement / versements (abonnements)?</label>
+                <select id="d-payplans" onchange="onFieldChange()"><option value="">—</option><option value="oui">Oui</option><option value="non">Non</option></select>
+              </div>
+              <div class="field"><label>Cartes-cadeaux vendues?</label>
+                <select id="d-giftcards" onchange="onFieldChange()"><option value="">—</option><option value="oui">Oui</option><option value="non">Non</option></select>
+              </div>
+            </div>
+            <div class="frow">
+              <div class="field"><label>Volume cartes-cadeaux / an ($)</label><div class="prefix-wrap"><span class="prefix">$</span><input type="number" id="d-giftcards-vol" placeholder="ex : 15 000"/></div></div>
+              <div class="field"><label>Autres produits / transactions types</label><input type="text" id="d-other-products" placeholder="ex : commandites, produits custom..."/></div>
+            </div>
           </div>
 
           <!-- Boutique souvenir — dans CA -->
@@ -1104,6 +1128,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
           <div class="frow">
             <div class="field"><label>Nb TPV <span class="req">*</span></label><input type="number" id="d-tpv" placeholder="ex : 3" oninput="onFieldChange()"/></div>
             <div class="field"><label>Contacts CRM à migrer</label><input type="number" id="d-crm-contacts" placeholder="ex : 25 000"/></div>
+          </div>
+          <div class="frow">
+            <div class="field"><label>Nb utilisateurs admin / employés</label><input type="number" id="d-admin-users" placeholder="ex : 8"/></div>
           </div>
           <div class="frow">
             <div class="field"><label>Format billets <span class="req">*</span></label>
@@ -1454,6 +1481,7 @@ async function loadFichesFromSharePoint() {
           crmContacts:     f.ContactsCRMMigrer || '',
           currentFees:     f.FraisActuels ? (() => { try { return JSON.parse(f.FraisActuels); } catch(e) { return null; } })() : null,
           payMix:          f.MixPaiement ? (() => { try { return JSON.parse(f.MixPaiement); } catch(e) { return null; } })() : null,
+          ...(f.InfosComplement ? (() => { try { return JSON.parse(f.InfosComplement); } catch(e) { return {}; } })() : {}),
           hasSurcharges:   !!(f.EmailLimiteBillet || f.SMSLimiteBillet || f.ContactLimite),
           serviceStart: f.DateDebutService ? f.DateDebutService.split('T')[0] : '',
           integrationStatus: f.StatutIntegration || '',
@@ -1538,11 +1566,16 @@ async function saveFicheToSharePoint(deal) {
       ContactsCRMMigrer: parseInt(deal.crmContacts) || null,
       FraisActuels: deal.currentFees ? JSON.stringify(deal.currentFees) : null,
       MixPaiement: deal.payMix ? JSON.stringify(deal.payMix) : null,
+      InfosComplement: JSON.stringify({
+        tktOrders: deal.tktOrders || '', compsPct: deal.compsPct || '', saisonMois: deal.saisonMois || '',
+        payPlans: deal.payPlans || '', giftCards: deal.giftCards || '', giftCardsVol: deal.giftCardsVol || '',
+        otherProducts: deal.otherProducts || '', adminUsers: deal.adminUsers || ''
+      }),
       DateDebutService: deal.serviceStart ? deal.serviceStart + 'T00:00:00Z' : null,
       StatutIntegration: deal.integrationStatus || '',
     };
     // Champs optionnels qui peuvent ne pas exister comme colonnes SP
-    const optionalCols = ['BoutiqueCommandes', 'BoutiqueTPV', 'ContactLimite', 'ContactSurchargeRate', 'ContactsCRMTotal', 'ContactsCRMMigrer', 'FraisActuels', 'MixPaiement'];
+    const optionalCols = ['BoutiqueCommandes', 'BoutiqueTPV', 'ContactLimite', 'ContactSurchargeRate', 'ContactsCRMTotal', 'ContactsCRMMigrer', 'FraisActuels', 'MixPaiement', 'InfosComplement'];
 
     const doSave = async (payload) => {
       if (deal.spId) {
@@ -1875,6 +1908,16 @@ function openDrawer(dealId, defaultCol) {
     if (deal.webMo) document.getElementById('d-web-mo').value = deal.webMo;
     if (deal.contacts)    { const el = document.getElementById('d-contacts');     if(el) el.value = deal.contacts; }
     if (deal.crmContacts) { const el = document.getElementById('d-crm-contacts'); if(el) el.value = deal.crmContacts; }
+    // Infos complémentaires
+    const setC = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+    setC('d-tkt-orders', deal.tktOrders);
+    setC('d-comps-pct', deal.compsPct);
+    setC('d-saison-mois', deal.saisonMois);
+    setC('d-payplans', deal.payPlans);
+    setC('d-giftcards', deal.giftCards);
+    setC('d-giftcards-vol', deal.giftCardsVol);
+    setC('d-other-products', deal.otherProducts);
+    setC('d-admin-users', deal.adminUsers);
     // Frais actuels & mix paiement (facultatif)
     const setOpt = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
     if (deal.currentFees) {
@@ -1947,6 +1990,7 @@ function resetDrawer() {
   ['d-team','d-supplier','d-expiry','d-start','d-owner','d-notes','d-tkt-yr','d-tkt-ev','d-scan','d-print','d-tpv','d-vol','d-nl-yr','d-contacts','d-crm-contacts','d-obj',
    'd-curfees-pct','d-curfees-fixed','d-curfees-monthly','d-curfees-notes',
    'd-pay-credit','d-pay-amex','d-pay-debit','d-pay-other','d-pay-online','d-pay-inperson',
+   'd-tkt-orders','d-comps-pct','d-saison-mois','d-payplans','d-giftcards','d-giftcards-vol','d-other-products','d-admin-users',
    'd-email-subs','d-sms-subs','d-sms-camp','d-web-mo','d-store-vol','d-boutique-vol','d-boutique-orders','d-boutique-tpv','d-service-start','d-agenda-notes','d-email-limit','d-email-over-rate','d-sms-limit','d-sms-over-rate','d-contact-limit','d-contact-over-rate',
    'd-tarif-fixe-mo','d-tarif-fixe-an','d-tarif-pct','d-tarif-store-pct','d-tarif-store-fixed','d-tarif-setup','d-tarif-nl','d-tarif-rabais','d-tarif-comman','d-tarif-comman-desc','d-tarif-notes']
   .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -2199,6 +2243,14 @@ function saveFiche() {
     webMo: document.getElementById('d-web-mo').value,
     contacts: document.getElementById('d-contacts')?.value || '',
     crmContacts: document.getElementById('d-crm-contacts')?.value || '',
+    tktOrders: document.getElementById('d-tkt-orders')?.value || '',
+    compsPct: document.getElementById('d-comps-pct')?.value || '',
+    saisonMois: document.getElementById('d-saison-mois')?.value || '',
+    payPlans: document.getElementById('d-payplans')?.value || '',
+    giftCards: document.getElementById('d-giftcards')?.value || '',
+    giftCardsVol: document.getElementById('d-giftcards-vol')?.value || '',
+    otherProducts: document.getElementById('d-other-products')?.value || '',
+    adminUsers: document.getElementById('d-admin-users')?.value || '',
     currentFees: {
       pct:     document.getElementById('d-curfees-pct')?.value || '',
       fixed:   document.getElementById('d-curfees-fixed')?.value || '',
@@ -2618,6 +2670,7 @@ const togState = {boutique:null,tkttype:null};
 
 let currentDealId = null;
 let dragId = null;
+let CALC_TKT_ORDERS = null; // nb de commandes réel depuis la fiche (si connu)
 
 // ---- CONFIG STRIPE (chargée depuis SharePoint — jamais de taux négociés dans le code) ----
 // Repli : tarification publique standard de Stripe (info publique)
@@ -2735,6 +2788,7 @@ function calcLoadProspect() {
   const note = document.getElementById('calc-tarif-note');
   if (note) { note.textContent = ''; note.style.display = 'none'; }
   if (!id) {
+    CALC_TKT_ORDERS = null;
     initCalcDefaults();
     runCalc();
     return;
@@ -2799,6 +2853,8 @@ function calcLoadProspect() {
   // Nb terminaux : TPV billetterie + TPV boutique depuis la fiche
   const tpvTotal = (parseInt(d.nbTPV) || 0) + (parseInt(d.boutiqueTpv) || 0);
   if (tpvTotal > 0) setVal('calc-tpv-count', tpvTotal);
+  // Nb de commandes réel depuis la fiche (remplace l'estimation par prix moyen)
+  CALC_TKT_ORDERS = parseFloat(d.tktOrders) > 0 ? parseFloat(d.tktOrders) : null;
   // Interchange pondéré selon le mix de paiement de la fiche (estimés publics marché canadien)
   const blended = computeBlendedInterchange(d.payMix);
   if (blended !== null) {
@@ -2861,9 +2917,10 @@ function runCalc() {
   const mktSms      = smsSubs * smsMonth * 12;
 
   // --- Costs ---
-  // Nb de commandes : basé sur le prix moyen réel si dispo, sinon billets vendus (1 commande = 1 billet en moyenne)
+  // Nb de commandes : réel depuis la fiche si connu > prix moyen réel > billets vendus
   const avgTktPrice = tickets > 0 && txnVol > 0 ? txnVol / tickets : 0;
-  const ticketOrders = txnVol > 0 && avgTktPrice > 0 ? txnVol / avgTktPrice : tickets;
+  const ticketOrders = CALC_TKT_ORDERS > 0 ? CALC_TKT_ORDERS
+                     : (txnVol > 0 && avgTktPrice > 0 ? txnVol / avgTktPrice : tickets);
   // Boutique : si on a le nb de commandes réel depuis la fiche, sinon estimation
   const storeOrders  = storeVol > 0 ? storeVol / 60 : 0; // panier moyen boutique ~60$
   const totalOrders  = ticketOrders + storeOrders;
@@ -4121,7 +4178,13 @@ textarea{min-height:60px;resize:vertical}
 <div class="row"><div><label>Billets unitaires / an</label><input id="f-unit-qty" type="number" placeholder="ex : 300000"></div><div><label>Prix moyen unitaire ($)</label><input id="f-unit-price" type="number" step="0.01" placeholder="ex : 15"></div></div>
 <div class="row"><div><label>Abonnements de saison / an</label><input id="f-saison-qty" type="number" placeholder="ex : 400"></div><div><label>Prix moyen saison ($)</label><input id="f-saison-price" type="number" step="0.01" placeholder="ex : 200"></div></div>
 <div class="row"><div><label>Forfaits / bundles / an</label><input id="f-bundle-qty" type="number" placeholder="ex : 5500"></div><div><label>Prix moyen bundle ($)</label><input id="f-bundle-price" type="number" step="0.01" placeholder="ex : 400"></div></div>
-<div class="row"><div><label>Billets par événement (moyenne)</label><input id="f-tkt-ev" type="number" placeholder="ex : 800"></div><div></div></div>
+<div class="row"><div><label>Billets par événement (moyenne)</label><input id="f-tkt-ev" type="number" placeholder="ex : 800"></div><div><label>Nb de commandes / an <span class="opt">(ou billets moyens/commande)</span></label><input id="f-tkt-orders" type="number" placeholder="ex : 45000"></div></div>
+<div class="row"><div><label>% de billets de faveur / gratuités</label><input id="f-comps-pct" type="number" step="0.1" placeholder="ex : 8"></div><div><label>Saisonnalité — mois d'activité</label><input id="f-saison-mois" placeholder="ex : septembre à avril"></div></div>
+</div>
+
+<div class="card"><h2>Produits & paiement</h2>
+<div class="row"><div><label>Plans de paiement / versements pour abonnements?</label><select id="f-payplans"><option value="">— choisir —</option><option value="oui">Oui</option><option value="non">Non</option></select></div><div><label>Vendez-vous des cartes-cadeaux?</label><select id="f-giftcards"><option value="">— choisir —</option><option value="oui">Oui</option><option value="non">Non</option></select></div></div>
+<div class="row"><div><label>Volume cartes-cadeaux / an ($)</label><input id="f-giftcards-vol" type="number" placeholder="ex : 15000"></div><div><label>Autres produits / transactions types</label><input id="f-other-products" placeholder="ex : commandites, produits custom..."></div></div>
 </div>
 
 <div class="card"><h2>Marketing & audience</h2>
@@ -4133,6 +4196,7 @@ textarea{min-height:60px;resize:vertical}
 <div class="card"><h2>Besoins techniques</h2>
 <div class="row"><div><label>Nb de scanneurs</label><input id="f-scan" type="number" placeholder="ex : 4"></div><div><label>Nb d'imprimantes</label><input id="f-print" type="number" placeholder="ex : 2"></div></div>
 <div class="row"><div><label>Nb de TPV (terminaux)</label><input id="f-tpv" type="number" placeholder="ex : 3"></div><div><label>Format de billets souhaité</label><select id="f-tkttype"><option value="">— choisir —</option><option value="non">Mobile seulement</option><option value="papier">Mobile + papier standard</option><option value="custom">Mobile + papier avec visuel personnalisé</option></select></div></div>
+<div class="row"><div><label>Nb d'utilisateurs admin / employés</label><input id="f-admin-users" type="number" placeholder="ex : 8"></div><div></div></div>
 </div>
 
 <div class="card"><h2>Boutique souvenir</h2>
@@ -4170,7 +4234,10 @@ function dl(){
     tktDetails:{unitaireQty:v('f-unit-qty'),unitairePrice:v('f-unit-price'),unitaireVol:'',unitairePct:'',unitaireFixed:'',
       saisonQty:v('f-saison-qty'),saisonPrice:v('f-saison-price'),saisonVol:'',saisonPct:'',saisonFixed:'',
       bundleQty:v('f-bundle-qty'),bundlePrice:v('f-bundle-price'),bundleVol:'',bundlePct:'',bundleFixed:''},
-    tktEv:v('f-tkt-ev'),emailSubs:v('f-email-subs'),nlYr:v('f-nl-yr'),smsSubs:v('f-sms-subs'),smsCamp:v('f-sms-camp'),
+    tktEv:v('f-tkt-ev'),tktOrders:v('f-tkt-orders'),compsPct:v('f-comps-pct'),saisonMois:v('f-saison-mois'),
+    payPlans:v('f-payplans'),giftCards:v('f-giftcards'),giftCardsVol:v('f-giftcards-vol'),otherProducts:v('f-other-products'),
+    adminUsers:v('f-admin-users'),
+    emailSubs:v('f-email-subs'),nlYr:v('f-nl-yr'),smsSubs:v('f-sms-subs'),smsCamp:v('f-sms-camp'),
     webMo:v('f-web-mo'),contacts:v('f-contacts'),
     nbScanneurs:v('f-scan'),nbImprimantes:v('f-print'),nbTPV:v('f-tpv'),tkttype:v('f-tkttype'),
     boutique:v('f-boutique'),storeVol:v('f-store-vol'),boutiqueOrders:v('f-store-orders'),boutiqueTpv:v('f-store-tpv'),
@@ -4218,6 +4285,14 @@ function importClientFile(file) {
     mergeIf('supplier', data.supplier);
     mergeIf('expiry', data.expiry);
     mergeIf('tktEv', data.tktEv);
+    mergeIf('tktOrders', data.tktOrders);
+    mergeIf('compsPct', data.compsPct);
+    mergeIf('saisonMois', data.saisonMois);
+    mergeIf('payPlans', data.payPlans);
+    mergeIf('giftCards', data.giftCards);
+    mergeIf('giftCardsVol', data.giftCardsVol);
+    mergeIf('otherProducts', data.otherProducts);
+    mergeIf('adminUsers', data.adminUsers);
     mergeIf('emailSubs', data.emailSubs);
     mergeIf('nlYr', data.nlYr);
     mergeIf('smsSubs', data.smsSubs);
@@ -4238,11 +4313,15 @@ function importClientFile(file) {
     }
     if (data.currentFees && Object.values(data.currentFees).some(x => x)) deal.currentFees = data.currentFees;
     if (data.payMix && Object.values(data.payMix).some(x => x)) deal.payMix = data.payMix;
-    // Notes : ajoute contact + notes du formulaire sans écraser les notes existantes
+    // Notes : ajoute contact + notes du formulaire sans écraser ni dupliquer
     const extraNotes = [];
-    if (data.contactName) extraNotes.push('Contact : ' + data.contactName + (data.contactEmail ? ' (' + data.contactEmail + ')' : ''));
-    if (data.notes) extraNotes.push('Formulaire : ' + data.notes);
-    if (extraNotes.length) deal.notes = ((deal.notes || '') + '\n' + extraNotes.join('\n')).trim();
+    const curNotes = deal.notes || '';
+    if (data.contactName) {
+      const contactLine = 'Contact : ' + data.contactName + (data.contactEmail ? ' (' + data.contactEmail + ')' : '');
+      if (!curNotes.includes(contactLine)) extraNotes.push(contactLine);
+    }
+    if (data.notes && !curNotes.includes(data.notes)) extraNotes.push('Formulaire : ' + data.notes);
+    if (extraNotes.length) deal.notes = (curNotes + '\n' + extraNotes.join('\n')).trim();
     renderKanban();
     openDrawer(deal.id);
     showNotif(isNew
