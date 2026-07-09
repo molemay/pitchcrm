@@ -310,6 +310,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
       </div>
       <div class="topbar-right">
         <button class="btn" onclick="signOut()"><i class="ti ti-logout"></i> Déconnexion</button>
+        <button class="btn" onclick="generateClientForm()" title="Génère un formulaire HTML à envoyer au prospect par courriel"><i class="ti ti-file-export"></i> Formulaire client</button>
+        <button class="btn" onclick="document.getElementById('import-fiche-file').click()" title="Importe un fichier .json rempli par le prospect"><i class="ti ti-file-import"></i> Importer</button>
+        <input type="file" id="import-fiche-file" accept=".json" style="display:none" onchange="importClientFile(this.files[0]);this.value=''"/>
         <button class="btn primary" onclick="openDrawer(null)"><i class="ti ti-plus"></i> Nouvelle fiche</button>
       </div>
     </div>
@@ -1133,6 +1136,36 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
             </div>
           </div>
         </div>
+        <!-- ====== 4. FOURNISSEUR ACTUEL & PAIEMENTS (facultatif) ====== -->
+        <div class="fsec">
+          <div class="fsec-title"><i class="ti ti-receipt-2"></i> 4 · Frais actuels & modes de paiement <span style="font-size:10px;font-weight:400;color:var(--text3);text-transform:none;letter-spacing:0">(facultatif)</span></div>
+          <div style="background:var(--surface2);border-radius:var(--r);padding:12px 14px;margin-bottom:10px">
+            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Frais payés au fournisseur actuel</div>
+            <div class="frow">
+              <div class="field"><label>% par transaction</label><div class="prefix-wrap"><span class="prefix">%</span><input type="text" inputmode="decimal" id="d-curfees-pct" placeholder="ex : 3.5"/></div></div>
+              <div class="field"><label>Fixe / billet ($)</label><div class="prefix-wrap"><span class="prefix">$</span><input type="text" inputmode="decimal" id="d-curfees-fixed" placeholder="ex : 1.50"/></div></div>
+            </div>
+            <div class="frow">
+              <div class="field"><label>Frais mensuels fixes ($)</label><div class="prefix-wrap"><span class="prefix">$</span><input type="text" inputmode="decimal" id="d-curfees-monthly" placeholder="ex : 250"/></div></div>
+              <div class="field"><label>Autres frais / notes</label><input type="text" id="d-curfees-notes" placeholder="ex : 500$ setup, frais remboursement..."/></div>
+            </div>
+          </div>
+          <div style="background:var(--surface2);border-radius:var(--r);padding:12px 14px">
+            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Répartition des modes de paiement (%)</div>
+            <div class="frow">
+              <div class="field"><label>Crédit (Visa/MC)</label><div class="prefix-wrap"><span class="prefix">%</span><input type="text" inputmode="decimal" id="d-pay-credit" placeholder="ex : 70"/></div></div>
+              <div class="field"><label>Amex</label><div class="prefix-wrap"><span class="prefix">%</span><input type="text" inputmode="decimal" id="d-pay-amex" placeholder="ex : 5"/></div></div>
+            </div>
+            <div class="frow">
+              <div class="field"><label>Débit (Interac)</label><div class="prefix-wrap"><span class="prefix">%</span><input type="text" inputmode="decimal" id="d-pay-debit" placeholder="ex : 20"/></div></div>
+              <div class="field"><label>Autres (chèque, comptant...)</label><div class="prefix-wrap"><span class="prefix">%</span><input type="text" inputmode="decimal" id="d-pay-other" placeholder="ex : 5"/></div></div>
+            </div>
+            <div class="frow">
+              <div class="field"><label>En ligne</label><div class="prefix-wrap"><span class="prefix">%</span><input type="text" inputmode="decimal" id="d-pay-online" placeholder="ex : 80"/></div></div>
+              <div class="field"><label>En personne (guichet/TPV)</label><div class="prefix-wrap"><span class="prefix">%</span><input type="text" inputmode="decimal" id="d-pay-inperson" placeholder="ex : 20"/></div></div>
+            </div>
+          </div>
+        </div>
       </div><!-- end padding wrapper -->
       </div><!-- end dpanel-info -->
 
@@ -1419,6 +1452,8 @@ async function loadFichesFromSharePoint() {
           contactOverRate: f.ContactSurchargeRate || '',
           contacts:        f.ContactsCRMTotal || '',
           crmContacts:     f.ContactsCRMMigrer || '',
+          currentFees:     f.FraisActuels ? (() => { try { return JSON.parse(f.FraisActuels); } catch(e) { return null; } })() : null,
+          payMix:          f.MixPaiement ? (() => { try { return JSON.parse(f.MixPaiement); } catch(e) { return null; } })() : null,
           hasSurcharges:   !!(f.EmailLimiteBillet || f.SMSLimiteBillet || f.ContactLimite),
           serviceStart: f.DateDebutService ? f.DateDebutService.split('T')[0] : '',
           integrationStatus: f.StatutIntegration || '',
@@ -1501,11 +1536,13 @@ async function saveFicheToSharePoint(deal) {
       ContactSurchargeRate: parseFloat(deal.contactOverRate) || null,
       ContactsCRMTotal: parseInt(deal.contacts) || null,
       ContactsCRMMigrer: parseInt(deal.crmContacts) || null,
+      FraisActuels: deal.currentFees ? JSON.stringify(deal.currentFees) : null,
+      MixPaiement: deal.payMix ? JSON.stringify(deal.payMix) : null,
       DateDebutService: deal.serviceStart ? deal.serviceStart + 'T00:00:00Z' : null,
       StatutIntegration: deal.integrationStatus || '',
     };
     // Champs optionnels qui peuvent ne pas exister comme colonnes SP
-    const optionalCols = ['BoutiqueCommandes', 'BoutiqueTPV', 'ContactLimite', 'ContactSurchargeRate', 'ContactsCRMTotal', 'ContactsCRMMigrer'];
+    const optionalCols = ['BoutiqueCommandes', 'BoutiqueTPV', 'ContactLimite', 'ContactSurchargeRate', 'ContactsCRMTotal', 'ContactsCRMMigrer', 'FraisActuels', 'MixPaiement'];
 
     const doSave = async (payload) => {
       if (deal.spId) {
@@ -1838,6 +1875,22 @@ function openDrawer(dealId, defaultCol) {
     if (deal.webMo) document.getElementById('d-web-mo').value = deal.webMo;
     if (deal.contacts)    { const el = document.getElementById('d-contacts');     if(el) el.value = deal.contacts; }
     if (deal.crmContacts) { const el = document.getElementById('d-crm-contacts'); if(el) el.value = deal.crmContacts; }
+    // Frais actuels & mix paiement (facultatif)
+    const setOpt = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+    if (deal.currentFees) {
+      setOpt('d-curfees-pct', deal.currentFees.pct);
+      setOpt('d-curfees-fixed', deal.currentFees.fixed);
+      setOpt('d-curfees-monthly', deal.currentFees.monthly);
+      setOpt('d-curfees-notes', deal.currentFees.notes);
+    }
+    if (deal.payMix) {
+      setOpt('d-pay-credit', deal.payMix.credit);
+      setOpt('d-pay-amex', deal.payMix.amex);
+      setOpt('d-pay-debit', deal.payMix.debit);
+      setOpt('d-pay-other', deal.payMix.other);
+      setOpt('d-pay-online', deal.payMix.online);
+      setOpt('d-pay-inperson', deal.payMix.inperson);
+    }
     if (deal.storeVol) {
       document.getElementById('d-store-vol').value = deal.storeVol;
       const bv = document.getElementById('d-boutique-vol'); if(bv) bv.value = deal.storeVol;
@@ -1892,6 +1945,8 @@ function openDrawer(dealId, defaultCol) {
 
 function resetDrawer() {
   ['d-team','d-supplier','d-expiry','d-start','d-owner','d-notes','d-tkt-yr','d-tkt-ev','d-scan','d-print','d-tpv','d-vol','d-nl-yr','d-contacts','d-crm-contacts','d-obj',
+   'd-curfees-pct','d-curfees-fixed','d-curfees-monthly','d-curfees-notes',
+   'd-pay-credit','d-pay-amex','d-pay-debit','d-pay-other','d-pay-online','d-pay-inperson',
    'd-email-subs','d-sms-subs','d-sms-camp','d-web-mo','d-store-vol','d-boutique-vol','d-boutique-orders','d-boutique-tpv','d-service-start','d-agenda-notes','d-email-limit','d-email-over-rate','d-sms-limit','d-sms-over-rate','d-contact-limit','d-contact-over-rate',
    'd-tarif-fixe-mo','d-tarif-fixe-an','d-tarif-pct','d-tarif-store-pct','d-tarif-store-fixed','d-tarif-setup','d-tarif-nl','d-tarif-rabais','d-tarif-comman','d-tarif-comman-desc','d-tarif-notes']
   .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -2144,6 +2199,20 @@ function saveFiche() {
     webMo: document.getElementById('d-web-mo').value,
     contacts: document.getElementById('d-contacts')?.value || '',
     crmContacts: document.getElementById('d-crm-contacts')?.value || '',
+    currentFees: {
+      pct:     document.getElementById('d-curfees-pct')?.value || '',
+      fixed:   document.getElementById('d-curfees-fixed')?.value || '',
+      monthly: document.getElementById('d-curfees-monthly')?.value || '',
+      notes:   document.getElementById('d-curfees-notes')?.value || '',
+    },
+    payMix: {
+      credit:   document.getElementById('d-pay-credit')?.value || '',
+      amex:     document.getElementById('d-pay-amex')?.value || '',
+      debit:    document.getElementById('d-pay-debit')?.value || '',
+      other:    document.getElementById('d-pay-other')?.value || '',
+      online:   document.getElementById('d-pay-online')?.value || '',
+      inperson: document.getElementById('d-pay-inperson')?.value || '',
+    },
     storeVol: document.getElementById('d-boutique-vol')?.value || '',
     boutique: togState.boutique,
     boutiqueOrders: document.getElementById('d-boutique-orders')?.value || '',
@@ -2730,6 +2799,12 @@ function calcLoadProspect() {
   // Nb terminaux : TPV billetterie + TPV boutique depuis la fiche
   const tpvTotal = (parseInt(d.nbTPV) || 0) + (parseInt(d.boutiqueTpv) || 0);
   if (tpvTotal > 0) setVal('calc-tpv-count', tpvTotal);
+  // Interchange pondéré selon le mix de paiement de la fiche (estimés publics marché canadien)
+  const blended = computeBlendedInterchange(d.payMix);
+  if (blended !== null) {
+    setVal('calc-network-pct', blended.pct.toFixed(2));
+    showNotif(`ⓘ Interchange estimé depuis le mix de paiement : ${blended.pct.toFixed(2)}% (${blended.detail})`);
+  }
   // Surcharges négociées → affiche section si la fiche en a
   const sc = getSurchargeSettings(d);
   const hasCustomSurcharges = d.hasSurcharges || d.emailLimit || d.smsLimit;
@@ -3982,6 +4057,200 @@ function parseSPNum(v) {
   return isNaN(n) ? '' : n;
 }
 
+
+// ---- INTERCHANGE PONDÉRÉ SELON LE MIX DE PAIEMENT ----
+// Estimés PUBLICS du marché canadien (interchange + frais de schéma) — pas de données contractuelles :
+//   Crédit Visa/MC en ligne (card-not-present) : ~1.50% · en personne : ~1.15%
+//   Amex : ~2.75% (similaire en ligne / en personne)
+//   Débit Interac : frais fixes minimes ≈ 0.05% équivalent
+//   Autres (chèque, comptant) : 0% — ne passent pas par le processeur de cartes
+const INTERCHANGE_EST = { creditOnline: 1.50, creditInPerson: 1.15, amex: 2.75, debit: 0.05, other: 0 };
+
+function computeBlendedInterchange(payMix) {
+  if (!payMix) return null;
+  const n = v => { const x = parseFloat(String(v||'').replace(',','.')); return isNaN(x) ? 0 : x; };
+  const credit = n(payMix.credit), amex = n(payMix.amex), debit = n(payMix.debit), other = n(payMix.other);
+  const totalMix = credit + amex + debit + other;
+  if (totalMix <= 0) return null;
+  // Part en ligne vs en personne (défaut 80/20 si non renseigné)
+  const online = n(payMix.online), inperson = n(payMix.inperson);
+  const onlineShare = (online + inperson) > 0 ? online / (online + inperson) : 0.8;
+  const creditRate = INTERCHANGE_EST.creditOnline * onlineShare + INTERCHANGE_EST.creditInPerson * (1 - onlineShare);
+  // Pondération sur le mix normalisé (le % "autres" dilue à 0 — pas de frais carte)
+  const blendedPct = (credit * creditRate + amex * INTERCHANGE_EST.amex + debit * INTERCHANGE_EST.debit + other * INTERCHANGE_EST.other) / totalMix;
+  const detail = `${credit}% crédit à ${creditRate.toFixed(2)}%` + (amex > 0 ? ` · ${amex}% Amex à ${INTERCHANGE_EST.amex}%` : '') + (debit > 0 ? ` · ${debit}% débit` : '') + (other > 0 ? ` · ${other}% hors carte` : '');
+  return { pct: blendedPct, detail };
+}
+
+// ---- FORMULAIRE CLIENT (export HTML autonome + import JSON) ----
+function generateClientForm() {
+  const formHtml = `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stadli — Questionnaire d'information</title>
+<style>
+:root{--bg:#f5f4f0;--card:#fff;--text:#1a1a1a;--text2:#666;--border:#e2e0da;--accent:#1a1a1a;--green:#2d7a4f}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);padding:24px 16px;line-height:1.5}
+.wrap{max-width:640px;margin:0 auto}
+h1{font-size:22px;margin-bottom:4px}
+.sub{color:var(--text2);font-size:14px;margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:14px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.row.single{grid-template-columns:1fr}
+label{display:block;font-size:12px;font-weight:600;margin-bottom:4px}
+label .opt{font-weight:400;color:var(--text2)}
+input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:#fff}
+textarea{min-height:60px;resize:vertical}
+.btn{display:block;width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px}
+.btn:hover{opacity:.9}
+.hint{font-size:12px;color:var(--text2);text-align:center;margin-top:10px}
+.ok{display:none;background:#e8f5ee;border:1px solid var(--green);color:var(--green);padding:12px;border-radius:10px;text-align:center;font-weight:600;margin-top:12px}
+@media(max-width:520px){.row{grid-template-columns:1fr}}
+</style></head><body><div class="wrap">
+<h1>Questionnaire — Stadli</h1>
+<div class="sub">Ces informations nous permettent de préparer une proposition adaptée à votre organisation. Les sections marquées <em>(facultatif)</em> peuvent être laissées vides. Durée : ~5 minutes.</div>
+
+<div class="card"><h2>Votre organisation</h2>
+<div class="row"><div><label>Nom de l'équipe / organisation *</label><input id="f-team" required></div><div><label>Personne contact</label><input id="f-contact"></div></div>
+<div class="row"><div><label>Courriel</label><input id="f-email" type="email"></div><div><label>Fournisseur de billetterie actuel</label><input id="f-supplier" placeholder="ex : TIXR, Ticketmaster..."></div></div>
+<div class="row"><div><label>Fin du contrat actuel</label><input id="f-expiry" type="date"></div><div></div></div>
+</div>
+
+<div class="card"><h2>Billetterie — volumes annuels</h2>
+<div class="row"><div><label>Billets unitaires / an</label><input id="f-unit-qty" type="number" placeholder="ex : 300000"></div><div><label>Prix moyen unitaire ($)</label><input id="f-unit-price" type="number" step="0.01" placeholder="ex : 15"></div></div>
+<div class="row"><div><label>Abonnements de saison / an</label><input id="f-saison-qty" type="number" placeholder="ex : 400"></div><div><label>Prix moyen saison ($)</label><input id="f-saison-price" type="number" step="0.01" placeholder="ex : 200"></div></div>
+<div class="row"><div><label>Forfaits / bundles / an</label><input id="f-bundle-qty" type="number" placeholder="ex : 5500"></div><div><label>Prix moyen bundle ($)</label><input id="f-bundle-price" type="number" step="0.01" placeholder="ex : 400"></div></div>
+<div class="row"><div><label>Billets par événement (moyenne)</label><input id="f-tkt-ev" type="number" placeholder="ex : 800"></div><div></div></div>
+</div>
+
+<div class="card"><h2>Marketing & audience</h2>
+<div class="row"><div><label>Abonnés courriel</label><input id="f-email-subs" type="number" placeholder="ex : 4500"></div><div><label>Infolettres / an</label><input id="f-nl-yr" type="number" placeholder="ex : 24"></div></div>
+<div class="row"><div><label>Abonnés SMS</label><input id="f-sms-subs" type="number" placeholder="ex : 2500"></div><div><label>Campagnes SMS / an</label><input id="f-sms-camp" type="number" placeholder="ex : 12"></div></div>
+<div class="row"><div><label>Trafic web / mois (visites)</label><input id="f-web-mo" type="number" placeholder="ex : 25000"></div><div><label>Contacts CRM total</label><input id="f-contacts" type="number" placeholder="ex : 25000"></div></div>
+</div>
+
+<div class="card"><h2>Besoins techniques</h2>
+<div class="row"><div><label>Nb de scanneurs</label><input id="f-scan" type="number" placeholder="ex : 4"></div><div><label>Nb d'imprimantes</label><input id="f-print" type="number" placeholder="ex : 2"></div></div>
+<div class="row"><div><label>Nb de TPV (terminaux)</label><input id="f-tpv" type="number" placeholder="ex : 3"></div><div><label>Format de billets souhaité</label><select id="f-tkttype"><option value="">— choisir —</option><option value="non">Mobile seulement</option><option value="papier">Mobile + papier standard</option><option value="custom">Mobile + papier avec visuel personnalisé</option></select></div></div>
+</div>
+
+<div class="card"><h2>Boutique souvenir</h2>
+<div class="row"><div><label>Boutique en ligne intégrée?</label><select id="f-boutique"><option value="">— choisir —</option><option value="oui">Oui</option><option value="non">Non</option></select></div><div><label>Ventes boutique / an ($)</label><input id="f-store-vol" type="number" placeholder="ex : 60000"></div></div>
+<div class="row"><div><label>Nb de commandes / an</label><input id="f-store-orders" type="number" placeholder="ex : 1500"></div><div><label>Nb de TPV boutique</label><input id="f-store-tpv" type="number" placeholder="ex : 2"></div></div>
+</div>
+
+<div class="card"><h2>Frais actuels <span class="opt">(facultatif)</span></h2>
+<div class="row"><div><label>% par transaction payé actuellement</label><input id="f-curfees-pct" type="number" step="0.01" placeholder="ex : 3.5"></div><div><label>Frais fixe / billet ($)</label><input id="f-curfees-fixed" type="number" step="0.01" placeholder="ex : 1.50"></div></div>
+<div class="row"><div><label>Frais mensuels fixes ($)</label><input id="f-curfees-monthly" type="number" placeholder="ex : 250"></div><div><label>Autres frais / précisions</label><input id="f-curfees-notes" placeholder="ex : frais de setup, remboursements..."></div></div>
+</div>
+
+<div class="card"><h2>Modes de paiement <span class="opt">(facultatif — % approximatifs)</span></h2>
+<div class="row"><div><label>Crédit Visa/Mastercard (%)</label><input id="f-pay-credit" type="number" placeholder="ex : 70"></div><div><label>Amex (%)</label><input id="f-pay-amex" type="number" placeholder="ex : 5"></div></div>
+<div class="row"><div><label>Débit Interac (%)</label><input id="f-pay-debit" type="number" placeholder="ex : 20"></div><div><label>Autres — chèque, comptant (%)</label><input id="f-pay-other" type="number" placeholder="ex : 5"></div></div>
+<div class="row"><div><label>Ventes en ligne (%)</label><input id="f-pay-online" type="number" placeholder="ex : 80"></div><div><label>En personne — guichet/TPV (%)</label><input id="f-pay-inperson" type="number" placeholder="ex : 20"></div></div>
+</div>
+
+<div class="card"><h2>Notes</h2>
+<div class="row single"><div><label>Autre chose à nous mentionner?</label><textarea id="f-notes" placeholder="Besoins particuliers, contraintes, questions..."></textarea></div></div>
+</div>
+
+<button class="btn" onclick="dl()">📥 Télécharger mes réponses</button>
+<div class="hint">Un fichier .json sera téléchargé — renvoyez-le simplement à votre contact Stadli par courriel.</div>
+<div class="ok" id="ok-msg">✓ Fichier téléchargé! Envoyez-le à votre contact Stadli.</div>
+
+<scr` + `ipt>
+function v(id){return document.getElementById(id).value||''}
+function dl(){
+  const team=v('f-team');
+  if(!team){alert("Le nom de l'organisation est requis.");return}
+  const data={_type:'stadli_fiche_v1',_date:new Date().toISOString(),
+    team:team,contactName:v('f-contact'),contactEmail:v('f-email'),
+    supplier:v('f-supplier'),expiry:v('f-expiry'),
+    tktDetails:{unitaireQty:v('f-unit-qty'),unitairePrice:v('f-unit-price'),unitaireVol:'',unitairePct:'',unitaireFixed:'',
+      saisonQty:v('f-saison-qty'),saisonPrice:v('f-saison-price'),saisonVol:'',saisonPct:'',saisonFixed:'',
+      bundleQty:v('f-bundle-qty'),bundlePrice:v('f-bundle-price'),bundleVol:'',bundlePct:'',bundleFixed:''},
+    tktEv:v('f-tkt-ev'),emailSubs:v('f-email-subs'),nlYr:v('f-nl-yr'),smsSubs:v('f-sms-subs'),smsCamp:v('f-sms-camp'),
+    webMo:v('f-web-mo'),contacts:v('f-contacts'),
+    nbScanneurs:v('f-scan'),nbImprimantes:v('f-print'),nbTPV:v('f-tpv'),tkttype:v('f-tkttype'),
+    boutique:v('f-boutique'),storeVol:v('f-store-vol'),boutiqueOrders:v('f-store-orders'),boutiqueTpv:v('f-store-tpv'),
+    currentFees:{pct:v('f-curfees-pct'),fixed:v('f-curfees-fixed'),monthly:v('f-curfees-monthly'),notes:v('f-curfees-notes')},
+    payMix:{credit:v('f-pay-credit'),amex:v('f-pay-amex'),debit:v('f-pay-debit'),other:v('f-pay-other'),online:v('f-pay-online'),inperson:v('f-pay-inperson')},
+    notes:v('f-notes')};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='stadli-infos-'+team.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.json';
+  a.click();
+  document.getElementById('ok-msg').style.display='block';
+}
+</scr` + `ipt></div></body></html>`;
+  const blob = new Blob([formHtml], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'questionnaire-stadli.html';
+  a.click();
+  showNotif('✓ Formulaire téléchargé — envoie-le au prospect par courriel');
+}
+
+function importClientFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    let data;
+    try { data = JSON.parse(e.target.result); }
+    catch(err) { showNotif('⚠ Fichier invalide — pas un JSON de formulaire Stadli'); return; }
+    if (data._type !== 'stadli_fiche_v1' || !data.team) {
+      showNotif('⚠ Fichier non reconnu — utilise le formulaire généré par l\'app');
+      return;
+    }
+    // Cherche une fiche existante (par nom, insensible à la casse)
+    let deal = DEALS.find(d => d.name.trim().toLowerCase() === data.team.trim().toLowerCase());
+    const isNew = !deal;
+    if (isNew) {
+      const numericIds = DEALS.map(d => parseInt(d.id)).filter(n => !isNaN(n));
+      const newId = numericIds.length ? Math.max(...numericIds) + 1 : Date.now();
+      deal = { id: String(newId), name: data.team, col: 'pitch', tags: [], comp: 0, tarif: {} };
+      DEALS.push(deal);
+    }
+    // Fusionne : n'écrase que les champs remplis dans le formulaire
+    const mergeIf = (key, val) => { if (val !== undefined && val !== null && val !== '') deal[key] = val; };
+    mergeIf('supplier', data.supplier);
+    mergeIf('expiry', data.expiry);
+    mergeIf('tktEv', data.tktEv);
+    mergeIf('emailSubs', data.emailSubs);
+    mergeIf('nlYr', data.nlYr);
+    mergeIf('smsSubs', data.smsSubs);
+    mergeIf('smsCamp', data.smsCamp);
+    mergeIf('webMo', data.webMo);
+    mergeIf('contacts', data.contacts);
+    mergeIf('nbScanneurs', data.nbScanneurs);
+    mergeIf('nbImprimantes', data.nbImprimantes);
+    mergeIf('nbTPV', data.nbTPV);
+    mergeIf('tkttype', data.tkttype);
+    mergeIf('storeVol', data.storeVol);
+    mergeIf('boutiqueOrders', data.boutiqueOrders);
+    mergeIf('boutiqueTpv', data.boutiqueTpv);
+    if (data.boutique) deal.boutique = data.boutique;
+    // Segmentation : merge seulement si au moins une qty remplie
+    if (data.tktDetails && (data.tktDetails.unitaireQty || data.tktDetails.saisonQty || data.tktDetails.bundleQty)) {
+      deal.tktDetails = Object.assign({}, deal.tktDetails || {}, data.tktDetails);
+    }
+    if (data.currentFees && Object.values(data.currentFees).some(x => x)) deal.currentFees = data.currentFees;
+    if (data.payMix && Object.values(data.payMix).some(x => x)) deal.payMix = data.payMix;
+    // Notes : ajoute contact + notes du formulaire sans écraser les notes existantes
+    const extraNotes = [];
+    if (data.contactName) extraNotes.push('Contact : ' + data.contactName + (data.contactEmail ? ' (' + data.contactEmail + ')' : ''));
+    if (data.notes) extraNotes.push('Formulaire : ' + data.notes);
+    if (extraNotes.length) deal.notes = ((deal.notes || '') + '\n' + extraNotes.join('\n')).trim();
+    renderKanban();
+    openDrawer(deal.id);
+    showNotif(isNew
+      ? '✓ Formulaire importé — nouvelle fiche "' + deal.name + '". Vérifie et enregistre.'
+      : '✓ Formulaire importé dans la fiche "' + deal.name + '". Vérifie et enregistre.');
+  };
+  reader.readAsText(file);
+}
 
 // ---- AUTO-REFRESH SHAREPOINT (toutes les 2 minutes) ----
 function startAutoRefresh() {
