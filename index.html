@@ -277,7 +277,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 </svg>
         <div>
           <div style="font-size:13px;font-weight:600;color:#fff;letter-spacing:-.01em">PitchCRM</div>
-          <div style="font-size:10px;color:rgba(255,255,255,.45);font-family:'DM Mono',monospace">Sales Pipeline test</div>
+          <div style="font-size:10px;color:rgba(255,255,255,.45);font-family:'DM Mono',monospace">Sales Pipeline</div>
         </div>
       </div>
     </div>
@@ -689,6 +689,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
                 <div class="field"><label>Ventes boutique / an ($)</label><input type="number" id="calc-store" placeholder="ex : 60 000" oninput="runCalc();calcWriteBack()"/></div>
                 <div class="field"><label>Contacts CRM total</label><input type="number" id="calc-contacts" placeholder="ex : 25 000" oninput="runCalc();calcWriteBack()"/></div>
               </div>
+              <div class="frow">
+                <div class="field"><label>Devise des volumes</label>
+                  <select id="calc-devise" onchange="toggleFxField();runCalc()"><option value="CAD">CAD</option><option value="USD">USD</option></select>
+                </div>
+                <div class="field" id="calc-fx-wrap" style="display:none"><label style="display:flex;align-items:center;gap:4px">Taux USD→CAD <span title="Les tiers Stripe sont définis en CAD — les volumes USD sont convertis pour le calcul des paliers" style="cursor:help;color:var(--text3);font-size:12px">ⓘ</span></label><input type="text" inputmode="decimal" id="calc-fx-rate" value="1.35" oninput="runCalc()"/></div>
+              </div>
             </div>
 
             <!-- Hypothèses de coûts unitaires -->
@@ -1070,6 +1076,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
             <div class="field"><label>Nb de commandes billetterie / an</label><input type="number" id="d-tkt-orders" placeholder="ex : 45 000" oninput="onFieldChange()"/></div>
           </div>
           <div class="frow">
+            <div class="field"><label>Panier moyen billetterie ($)</label><div class="prefix-wrap"><span class="prefix">$</span><input type="text" inputmode="decimal" id="d-basket-tkt" placeholder="ex : 95"/></div></div>
+            <div class="field"><label>Devise</label>
+              <select id="d-devise" onchange="onFieldChange()"><option value="CAD">CAD</option><option value="USD">USD</option></select>
+            </div>
+          </div>
+          <div class="frow">
             <div class="field"><label>% billets de faveur / gratuités</label><div class="prefix-wrap"><span class="prefix">%</span><input type="text" inputmode="decimal" id="d-comps-pct" placeholder="ex : 8"/></div></div>
             <div class="field"><label>Saisonnalité — mois d'activité</label><input type="text" id="d-saison-mois" placeholder="ex : sept à avril"/></div>
           </div>
@@ -1081,7 +1093,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
           <div style="margin-top:8px;padding:12px 14px;background:var(--surface2);border-radius:var(--r);margin-bottom:8px">
             <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px"><i class="ti ti-gift" style="font-size:13px"></i> Produits & paiement</div>
             <div class="frow">
-              <div class="field"><label>Plans de paiement / versements (abonnements)?</label>
+              <div class="field"><label>Calendrier de paiement / paiements multiples (saison, loges)?</label>
                 <select id="d-payplans" onchange="onFieldChange()"><option value="">—</option><option value="oui">Oui</option><option value="non">Non</option></select>
               </div>
               <div class="field"><label>Cartes-cadeaux vendues?</label>
@@ -1112,7 +1124,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
               </div>
               <div class="frow">
                 <div class="field"><label>Nb de TPV boutique</label><input type="number" id="d-boutique-tpv" placeholder="ex : 2" oninput="onFieldChange()"/></div>
-                <div class="field" style="display:flex;align-items:flex-end;padding-bottom:4px"><div style="font-size:11px;color:var(--text3);line-height:1.5">Terminaux physiques en boutique (séparés des TPV billetterie)</div></div>
+                <div class="field"><label>Panier moyen boutique ($)</label><div class="prefix-wrap"><span class="prefix">$</span><input type="text" inputmode="decimal" id="d-basket-store" placeholder="ex : 60"/></div></div>
               </div>
             </div>
           </div>
@@ -1126,7 +1138,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
             <div class="field"><label>Nb imprimantes <span class="req">*</span></label><input type="number" id="d-print" placeholder="ex : 2" oninput="onFieldChange()"/></div>
           </div>
           <div class="frow">
-            <div class="field"><label>Nb TPV <span class="req">*</span></label><input type="number" id="d-tpv" placeholder="ex : 3" oninput="onFieldChange()"/></div>
+            <div class="field"><label>Nb TPV billetterie <span class="req">*</span></label><input type="number" id="d-tpv" placeholder="ex : 3" oninput="onFieldChange()"/></div>
             <div class="field"><label>Contacts CRM à migrer</label><input type="number" id="d-crm-contacts" placeholder="ex : 25 000"/></div>
           </div>
           <div class="frow">
@@ -1582,7 +1594,8 @@ async function saveFicheToSharePoint(deal) {
       InfosComplement: JSON.stringify({
         tktOrders: deal.tktOrders || '', compsPct: deal.compsPct || '', saisonMois: deal.saisonMois || '',
         payPlans: deal.payPlans || '', giftCards: deal.giftCards || '', giftCardsVol: deal.giftCardsVol || '',
-        otherProducts: deal.otherProducts || '', adminUsers: deal.adminUsers || ''
+        otherProducts: deal.otherProducts || '', adminUsers: deal.adminUsers || '',
+        basketTkt: deal.basketTkt || '', basketStore: deal.basketStore || '', devise: deal.devise || 'CAD'
       }),
       DateDebutService: deal.serviceStart ? deal.serviceStart + 'T00:00:00Z' : null,
       StatutIntegration: deal.integrationStatus || '',
@@ -1931,6 +1944,9 @@ function openDrawer(dealId, defaultCol) {
     setC('d-giftcards-vol', deal.giftCardsVol);
     setC('d-other-products', deal.otherProducts);
     setC('d-admin-users', deal.adminUsers);
+    setC('d-basket-tkt', deal.basketTkt);
+    setC('d-basket-store', deal.basketStore);
+    setC('d-devise', deal.devise);
     // Frais actuels & mix paiement (facultatif)
     const setOpt = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
     if (deal.currentFees) {
@@ -2003,7 +2019,7 @@ function resetDrawer() {
   ['d-team','d-supplier','d-expiry','d-start','d-owner','d-notes','d-tkt-yr','d-tkt-ev','d-scan','d-print','d-tpv','d-vol','d-nl-yr','d-contacts','d-crm-contacts','d-obj',
    'd-curfees-pct','d-curfees-fixed','d-curfees-monthly','d-curfees-notes',
    'd-pay-credit','d-pay-amex','d-pay-debit','d-pay-other','d-pay-online','d-pay-inperson',
-   'd-tkt-orders','d-comps-pct','d-saison-mois','d-payplans','d-giftcards','d-giftcards-vol','d-other-products','d-admin-users',
+   'd-tkt-orders','d-comps-pct','d-saison-mois','d-payplans','d-giftcards','d-giftcards-vol','d-other-products','d-admin-users','d-basket-tkt','d-basket-store',
    'd-email-subs','d-sms-subs','d-sms-camp','d-web-mo','d-store-vol','d-boutique-vol','d-boutique-orders','d-boutique-tpv','d-service-start','d-agenda-notes','d-email-limit','d-email-over-rate','d-sms-limit','d-sms-over-rate','d-contact-limit','d-contact-over-rate',
    'd-tarif-fixe-mo','d-tarif-fixe-an','d-tarif-pct','d-tarif-store-pct','d-tarif-store-fixed','d-tarif-setup','d-tarif-nl','d-tarif-rabais','d-tarif-comman','d-tarif-comman-desc','d-tarif-notes']
   .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -2022,6 +2038,7 @@ function resetDrawer() {
   // Décocher les radios boutique
   const bOui = document.getElementById('d-boutique-oui'); if (bOui) bOui.checked = false;
   const bNon = document.getElementById('d-boutique-non'); if (bNon) bNon.checked = false;
+  const dev = document.getElementById('d-devise'); if (dev) dev.value = 'CAD';
   resetTktFields();
   // Reset tkttype chips
   ['papier','custom','non'].forEach(v => {
@@ -2264,6 +2281,9 @@ function saveFiche() {
     giftCardsVol: document.getElementById('d-giftcards-vol')?.value || '',
     otherProducts: document.getElementById('d-other-products')?.value || '',
     adminUsers: document.getElementById('d-admin-users')?.value || '',
+    basketTkt: document.getElementById('d-basket-tkt')?.value || '',
+    basketStore: document.getElementById('d-basket-store')?.value || '',
+    devise: document.getElementById('d-devise')?.value || 'CAD',
     currentFees: {
       pct:     document.getElementById('d-curfees-pct')?.value || '',
       fixed:   document.getElementById('d-curfees-fixed')?.value || '',
@@ -2429,7 +2449,7 @@ function calcRevenues() {
     const revTickets = hasSegmentation
       ? getTktRevenue(d)
       : (volK * pct) + (tickets * fallbackFixed);
-    const storePctR   = (parseFloat(t.storePct) || 2.5) / 100;
+    const storePctR   = (t.storePct !== undefined && t.storePct !== '' && !isNaN(parseFloat(t.storePct)) ? parseFloat(t.storePct) : 2.5) / 100;
     const storeFixedR = parseFloat(t.storeFixed) || 0;
     const storeTxnsR  = storeVol > 0 ? Math.round(storeVol / 60) : 0; // panier moyen boutique ~60$
     const revStore    = (storeVol * storePctR) + (storeTxnsR * storeFixedR);
@@ -2685,6 +2705,8 @@ let currentDealId = null;
 let dragId = null;
 let CALC_TKT_ORDERS = null; // nb de commandes réel depuis la fiche (si connu)
 let PENDING_IMPORT = null;  // données du formulaire en attente de destination
+let CALC_ONLINE_SHARE = null; // part des ventes en ligne (0-1) depuis la fiche
+let CALC_BASKET_STORE = null; // panier moyen boutique depuis la fiche
 
 // ---- CONFIG STRIPE (chargée depuis SharePoint — jamais de taux négociés dans le code) ----
 // Repli : tarification publique standard de Stripe (info publique)
@@ -2695,6 +2717,12 @@ let STRIPE_CFG = {
   connectPct: 0, connectFixedMo: 0
 };
 let stripeCfgLoaded = false;
+
+function toggleFxField() {
+  const dev = document.getElementById('calc-devise')?.value;
+  const wrap = document.getElementById('calc-fx-wrap');
+  if (wrap) wrap.style.display = dev === 'USD' ? 'block' : 'none';
+}
 
 function toggleStripeCfg() {
   const p = document.getElementById('stripe-cfg-panel');
@@ -2803,6 +2831,8 @@ function calcLoadProspect() {
   if (note) { note.textContent = ''; note.style.display = 'none'; }
   if (!id) {
     CALC_TKT_ORDERS = null;
+    CALC_BASKET_STORE = null;
+    CALC_ONLINE_SHARE = null;
     initCalcDefaults();
     runCalc();
     return;
@@ -2812,6 +2842,10 @@ function calcLoadProspect() {
   const t = d.tarif || {};
   const setVal = (elId, val) => { const el = document.getElementById(elId); if (el && val !== '' && val !== null && val !== undefined) el.value = val; };
   // Usage depuis la fiche
+  // RESET des champs d'usage avant chargement (évite les valeurs de l'équipe précédente)
+  ['calc-tickets','calc-txn-vol','calc-email','calc-sms','calc-store','calc-contacts','calc-nl-month','calc-sms-month','calc-tpv-count'].forEach(fid => {
+    const el = document.getElementById(fid); if (el) el.value = '';
+  });
   setVal('calc-tickets',   parseFloat(d.tktYr) || '');
   // Load tkt segmentation into calc
   if (d.tktDetails) {
@@ -2869,6 +2903,16 @@ function calcLoadProspect() {
   if (tpvTotal > 0) setVal('calc-tpv-count', tpvTotal);
   // Nb de commandes réel depuis la fiche (remplace l'estimation par prix moyen)
   CALC_TKT_ORDERS = parseFloat(d.tktOrders) > 0 ? parseFloat(d.tktOrders) : null;
+  // Panier moyen boutique depuis la fiche
+  CALC_BASKET_STORE = parseFloat(d.basketStore) > 0 ? parseFloat(d.basketStore) : null;
+  // Devise de la fiche
+  const devEl = document.getElementById('calc-devise');
+  if (devEl) { devEl.value = d.devise || 'CAD'; toggleFxField(); }
+  // Part des ventes en ligne (les confirmations de commande par courriel ne s'appliquent qu'en ligne)
+  if (d.payMix) {
+    const on = parseFloat(d.payMix.online) || 0, ip = parseFloat(d.payMix.inperson) || 0;
+    CALC_ONLINE_SHARE = (on + ip) > 0 ? on / (on + ip) : null;
+  } else { CALC_ONLINE_SHARE = null; }
   // Interchange pondéré selon le mix de paiement de la fiche (estimés publics marché canadien)
   const blended = computeBlendedInterchange(d.payMix);
   if (blended !== null) {
@@ -2919,12 +2963,12 @@ function runCalc() {
   const connectPct    = parseNum(document.getElementById('calc-connect-pct')?.value, STRIPE_CFG.connectPct) / 100;
   const connectFixedMo= parseNum(document.getElementById('calc-connect-fixed-mo')?.value, STRIPE_CFG.connectFixedMo);
   const terminalMo    = STRIPE_CFG.terminalMo || 0;
-  const cEmail      = parseFloat(document.getElementById('calc-c-email')?.value) || 0.0007;
-  const cSms        = parseFloat(document.getElementById('calc-c-sms')?.value) || 0.0083;
-  const infra       = parseFloat(document.getElementById('calc-infra')?.value) || 40;
-  const baseFee     = parseFloat(document.getElementById('calc-base-fee-stadli')?.value) || parseFloat(document.getElementById('calc-base-fee')?.value) || 149;
-  const txEmailR    = parseFloat(document.getElementById('calc-tx-email-ratio')?.value) || 1.2;
-  const txSmsR      = parseFloat(document.getElementById('calc-tx-sms-ratio')?.value) || 0.25;
+  const cEmail      = parseNum(document.getElementById('calc-c-email')?.value, 0.0007);
+  const cSms        = parseNum(document.getElementById('calc-c-sms')?.value, 0.0083);
+  const infra       = parseNum(document.getElementById('calc-infra')?.value, 40);
+  const baseFee     = parseNum(document.getElementById('calc-base-fee-stadli')?.value, parseNum(document.getElementById('calc-base-fee')?.value, 149));
+  const txEmailR    = parseNum(document.getElementById('calc-tx-email-ratio')?.value, 1.2);
+  const txSmsR      = parseNum(document.getElementById('calc-tx-sms-ratio')?.value, 0.25);
 
   // --- Derived volumes ---
   const mktEmails   = emailSubs * nlMonth * 12;
@@ -2936,12 +2980,16 @@ function runCalc() {
   const ticketOrders = CALC_TKT_ORDERS > 0 ? CALC_TKT_ORDERS
                      : (txnVol > 0 && avgTktPrice > 0 ? txnVol / avgTktPrice : tickets);
   // Boutique : si on a le nb de commandes réel depuis la fiche, sinon estimation
-  const storeOrders  = storeVol > 0 ? storeVol / 60 : 0; // panier moyen boutique ~60$
+  const storeBasket  = CALC_BASKET_STORE > 0 ? CALC_BASKET_STORE : 60; // panier moyen boutique (fiche ou ~60$)
+  const storeOrders  = storeVol > 0 ? storeVol / storeBasket : 0;
   const totalOrders  = ticketOrders + storeOrders;
   const totalVolume  = txnVol + storeVol;
 
   // --- Stripe : tiers progressifs configurés (SharePoint) sur le volume carte mensuel ---
-  const monthlyVol = totalVolume / 12;
+  // Les paliers sont en CAD : si les volumes sont en USD, on convertit pour déterminer le tier
+  const deviseSel = document.getElementById('calc-devise')?.value || 'CAD';
+  const fxRate = deviseSel === 'USD' ? parseNum(document.getElementById('calc-fx-rate')?.value, 1.35) : 1;
+  const monthlyVol = (totalVolume * fxRate) / 12;
   const tierEff = stripeTierEffective(monthlyVol);
   const stripeEffPct   = tierEff.effPct;
   const stripeEffFixed = tierEff.effFixed;
@@ -2960,8 +3008,10 @@ function runCalc() {
   const costStripeBoutique = costStripe * (1 - volShareBillets);
 
   // Email & SMS: single total cost — not split by source (same rate regardless)
-  const txEmails = totalOrders * txEmailR;
-  const txSms    = totalOrders * txSmsR;
+  // Confirmations de commande : chaque commande EN LIGNE = 1 courriel (les ventes guichet n'en envoient pas)
+  const onlineShare = CALC_ONLINE_SHARE !== null ? CALC_ONLINE_SHARE : 1;
+  const txEmails = totalOrders * onlineShare * txEmailR;
+  const txSms    = totalOrders * onlineShare * txSmsR;
   const costEmail = (mktEmails + txEmails) * cEmail;
   const costSms   = (mktSms + txSms) * cSms;
 
@@ -2969,8 +3019,8 @@ function runCalc() {
   const totalCost   = costStripe + costEmail + costSms + costInfra;
 
   // --- Revenue (Stadli pricing) ---
-  const stadliPct   = (parseFloat(document.getElementById('calc-stadli-pct')?.value) || 2.5) / 100;
-  const stadliFixed = parseFloat(document.getElementById('calc-stadli-fixed')?.value) || 1.00;
+  const stadliPct   = parseNum(document.getElementById('calc-stadli-pct')?.value, 2.5) / 100;
+  const stadliFixed = parseNum(document.getElementById('calc-stadli-fixed')?.value, 1.00);
   // Revenus billets — utilise la segmentation si dispo, sinon fallback global
   const calcTktDetails = {
     unitaireQty:   document.getElementById('calc-tkt-unitaire')?.value,
@@ -3006,10 +3056,10 @@ function runCalc() {
   const calcSurchargeOpen = document.getElementById('calc-surcharge-section')?.style.display !== 'none';
   let revEmailOver = 0, revSmsOver = 0;
   if (calcSurchargeOpen) {
-    const emailLimitV    = parseFloat(document.getElementById('calc-email-limit')?.value) || 25;
-    const emailOverRateV = parseFloat(document.getElementById('calc-email-over-rate')?.value) || 1;
-    const smsLimitV      = parseFloat(document.getElementById('calc-sms-limit')?.value) || 3;
-    const smsOverRateV   = parseFloat(document.getElementById('calc-sms-over-rate')?.value) || 20;
+    const emailLimitV    = parseNum(document.getElementById('calc-email-limit')?.value, 25);
+    const emailOverRateV = parseNum(document.getElementById('calc-email-over-rate')?.value, 1);
+    const smsLimitV      = parseNum(document.getElementById('calc-sms-limit')?.value, 3);
+    const smsOverRateV   = parseNum(document.getElementById('calc-sms-over-rate')?.value, 20);
     const emailIncl = tickets * emailLimitV;
     const emailOver = Math.max(0, mktEmails - emailIncl);
     revEmailOver = emailOver / 1000 * emailOverRateV;
@@ -3067,7 +3117,7 @@ function runCalc() {
       title: 'Email & SMS (total)',
       rows: [
         { label: 'Courriels marketing', note: `${Math.round(mktEmails/1000)}k envois marketing / an`, val: mktEmails * cEmail },
-        { label: 'Courriels transactionnels', note: `${Math.round(txEmails/1000)}k confirmations / an (${txEmailR}/ordre)`, val: txEmails * cEmail },
+        { label: 'Courriels transactionnels', note: `${Math.round(txEmails/1000)}k confirmations / an (${txEmailR}/commande en ligne${CALC_ONLINE_SHARE !== null ? ' · ' + Math.round(onlineShare*100) + '% en ligne' : ''})`, val: txEmails * cEmail },
         { label: 'SMS marketing', note: `${Math.round(mktSms/1000)}k envois marketing / an`, val: mktSms * cSms },
         ...(txSmsR > 0 ? [{ label: 'SMS transactionnels', note: `${Math.round(txSms/1000)}k confirmations / an`, val: txSms * cSms }] : []),
       ],
@@ -3154,8 +3204,8 @@ function runCalc() {
   if (notes) {
     const incl = [];
     if (calcSurchargeOpen) {
-      const emailLimitN = parseFloat(document.getElementById('calc-email-limit')?.value) || 25;
-      const smsLimitN   = parseFloat(document.getElementById('calc-sms-limit')?.value) || 3;
+      const emailLimitN = parseNum(document.getElementById('calc-email-limit')?.value, 25);
+      const smsLimitN   = parseNum(document.getElementById('calc-sms-limit')?.value, 3);
       const emailInclN  = tickets * emailLimitN;
       const smsInclN    = tickets * smsLimitN;
       const mktEmailsN  = emailSubs * nlMonth * 12;
@@ -3481,7 +3531,7 @@ async function saveMetaToSP(typeMeta, id, data) {
     // Check if exists first
     const checkRes = await fetch(
       `${GRAPH_BASE}/sites/${siteId}/lists/${META_LIST_ID}/items?$filter=fields/Title eq '${id}'&expand=fields`,
-      { headers: { Authorization: "Bearer " + token } }
+      { headers: { Authorization: "Bearer " + token, Prefer: 'HonorNonIndexedQueriesWarningMayFailRandomly' } }
     );
     const checkData = await checkRes.json();
     if (checkData.value && checkData.value.length > 0) {
@@ -3509,7 +3559,7 @@ async function deleteMetaFromSP(id) {
     const siteId = await getSiteId();
     const checkRes = await fetch(
       `${GRAPH_BASE}/sites/${siteId}/lists/${META_LIST_ID}/items?$filter=fields/Title eq '${id}'&expand=fields`,
-      { headers: { Authorization: "Bearer " + token } }
+      { headers: { Authorization: "Bearer " + token, Prefer: 'HonorNonIndexedQueriesWarningMayFailRandomly' } }
     );
     const checkData = await checkRes.json();
     if (checkData.value && checkData.value.length > 0) {
@@ -3836,15 +3886,16 @@ function tarifLoadProspect() {
     const rows = [];
     ['unitaire','saison','bundle'].forEach(type => {
       const qty   = parseFloat(td[type+'Qty'])   || 0;
-      const rate  = parseFloat(td[type+'Rate'])  || 0;
+      const pct   = parseFloat(td[type+'Pct'])   || 0;
+      const fixed = parseFloat(td[type+'Fixed']) || 0;
       const price = parseFloat(td[type+'Price']) || 0;
-      const rtype = td[type+'Type'] || '$';
-      if (!qty) return; // Show if qty set, even if rate=0
-      const fmtRate = rate === 0
-        ? `<span style="color:var(--text3)">—</span>`
-        : rtype === '%'
-          ? `${rate}% <span style="font-size:11px;color:var(--text3)">${price > 0 ? '(prix moy. '+price+'$)' : ''}</span>`
-          : `${rate.toFixed(2)} $ / billet`;
+      if (!qty) return;
+      const parts = [];
+      if (pct > 0)   parts.push(pct + '%');
+      if (fixed > 0) parts.push(fixed.toFixed(2) + ' $/billet');
+      const fmtRate = parts.length
+        ? parts.join(' + ') + (price > 0 ? ` <span style="font-size:11px;color:var(--text3)">(prix moy. ${price}$)</span>` : '')
+        : `<span style="color:var(--text3)">—</span>`;
       rows.push(`<div class="tarif-row" style="padding:8px 20px">
         <div class="tarif-name" style="font-size:13px">${typeLabels[type]}<div class="tarif-note">${Math.round(qty).toLocaleString('fr-CA')} billets / an</div></div>
         <div class="tarif-val-wrap"><span style="font-size:14px;font-weight:600;font-family:'JetBrains Mono',monospace;color:var(--blue)">${fmtRate}</span></div>
@@ -3902,7 +3953,7 @@ function tarifLoadProspect() {
 
   if ((tickets > 0 || volK > 0) && wrap && est) {
     // Use fiche tarif values directly — no DOM input reads (grille is read-only)
-    const pct      = (parseFloat(t.pct) || 2.5) / 100;
+    const pct      = (t.pct !== undefined && t.pct !== '' && !isNaN(parseFloat(t.pct)) ? parseFloat(t.pct) : 2.5) / 100;
     const storePct = (parseFloat(t.storePct) || parseFloat(t.pct) || 2.5) / 100;
     const baseFee  = t.fixeAn ? Math.round(parseFloat(t.fixeAn) / 12) : 149;
     const sc = getSurchargeSettings(d);
@@ -3968,7 +4019,7 @@ function tarifRecalc() {
 
   // Revenus billets — segmentation si dispo, sinon tarif % négocié + fixe
   const hasSeg = d.tktDetails && (d.tktDetails.unitaireQty || d.tktDetails.saisonQty || d.tktDetails.bundleQty);
-  const pct      = (parseFloat(t.pct) || 2.5) / 100;
+  const pct      = (t.pct !== undefined && t.pct !== '' && !isNaN(parseFloat(t.pct)) ? parseFloat(t.pct) : 2.5) / 100;
   const fixed    = parseFloat(t.pct) > 0 ? 0 : 1;
   const revTickets = hasSeg ? getTktRevenue(d) : (volK * pct) + (tickets * fixed);
 
@@ -4159,39 +4210,44 @@ function generateClientForm() {
 <html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Stadli — Questionnaire / Questionnaire</title>
 <style>
-:root{--bg:#f5f4f0;--card:#fff;--text:#1a1a1a;--text2:#666;--border:#e2e0da;--accent:#1a1a1a;--green:#2d7a4f}
+:root{--bg:#010101;--card:#080808;--text:#ffffff;--text2:#929292;--border:#161616;--border2:#303030;--accent:#ffffff;--green:#44d62b;--grad:linear-gradient(135deg,#fe5619,#f6166e)}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);padding:24px 16px;line-height:1.5}
+body{font-family:'Helvetica Neue','Helvetica Now',Inter,sans-serif;background:var(--bg);color:var(--text);padding:24px 16px;line-height:1.5}
+.wordmark{font-size:26px;font-weight:500;letter-spacing:-.03em;color:#fff;margin-bottom:20px}
+.wordmark::after{content:'.';background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .wrap{max-width:640px;margin:0 auto}
 h1{font-size:22px;margin-bottom:4px}
 .sub{color:var(--text2);font-size:14px;margin-bottom:24px}
-.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:16px}
 .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:14px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
 .row.single{grid-template-columns:1fr}
 label{display:block;font-size:12px;font-weight:600;margin-bottom:4px}
 label .opt{font-weight:400;color:var(--text2)}
-input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:#fff}
+input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--border2);border-radius:6px;font-size:14px;font-family:inherit;background:#1a1a1a;color:#fff}
+input::placeholder,textarea::placeholder{color:#6a6a6a}
+label.req::after{content:' *';color:#f6166e}
 textarea{min-height:60px;resize:vertical}
-.btn{display:block;width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px}
+.btn{display:block;width:100%;padding:14px;background:var(--grad);color:#fff;border:none;border-radius:6px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px}
 .btn:hover{opacity:.9}
 .hint{font-size:12px;color:var(--text2);text-align:center;margin-top:10px}
-.ok{display:none;background:#e8f5ee;border:1px solid var(--green);color:var(--green);padding:12px;border-radius:10px;text-align:center;font-weight:600;margin-top:12px}
+.ok{display:none;background:rgba(68,214,43,.1);border:1px solid var(--green);color:var(--green);padding:12px;border-radius:6px;text-align:center;font-weight:600;margin-top:12px}
 .langbar{display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px}
-.langbar button{padding:6px 14px;border:1px solid var(--border);background:#fff;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer}
-.langbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.langbar button{padding:6px 14px;border:1px solid var(--border2);background:#1a1a1a;color:#929292;border-radius:9999px;font-size:12px;font-weight:600;cursor:pointer}
+.langbar button.on{background:#fff;color:#010101;border-color:#fff}
 body.fr .en{display:none}
 body.en .fr{display:none}
 @media(max-width:520px){.row{grid-template-columns:1fr}}
 </style></head><body class="fr"><div class="wrap">
 <div class="langbar"><button id="btn-fr" class="on" onclick="setLang('fr')">Français</button><button id="btn-en" onclick="setLang('en')">English</button></div>
-<h1><span class="fr">Questionnaire — Stadli</span><span class="en">Questionnaire — Stadli</span></h1>
+<div class="wordmark">stadli</div>
+<h1><span class="fr">Questionnaire</span><span class="en">Questionnaire</span></h1>
 <div class="sub"><span class="fr">Ces informations nous permettent de préparer une proposition adaptée à votre organisation. Les sections marquées <em>(facultatif)</em> peuvent être laissées vides. Durée : ~5 minutes.</span><span class="en">This information helps us prepare a proposal tailored to your organization. Sections marked <em>(optional)</em> may be left blank. Time: ~5 minutes.</span></div>
 
 <div class="card"><h2><span class="fr">Votre organisation</span><span class="en">Your organization</span></h2>
 <div class="row"><div><label><span class="fr">Nom de l'équipe / organisation *</span><span class="en">Team / organization name *</span></label><input id="f-team" required></div><div><label><span class="fr">Personne contact</span><span class="en">Contact person</span></label><input id="f-contact"></div></div>
 <div class="row"><div><label><span class="fr">Courriel</span><span class="en">Email</span></label><input id="f-email" type="email"></div><div><label><span class="fr">Fournisseur de billetterie actuel</span><span class="en">Current ticketing provider</span></label><input id="f-supplier" placeholder="ex : TIXR, Ticketmaster..."></div></div>
-<div class="row"><div><label><span class="fr">Fin du contrat actuel</span><span class="en">Current contract end date</span></label><input id="f-expiry" type="date"></div><div></div></div>
+<div class="row"><div><label><span class="fr">Fin du contrat actuel</span><span class="en">Current contract end date</span></label><input id="f-expiry" type="date"></div><div><label><span class="fr">Devise de vos ventes</span><span class="en">Sales currency</span></label><select id="f-devise"><option value="CAD">CAD</option><option value="USD">USD</option></select></div></div>
 </div>
 
 <div class="card"><h2><span class="fr">Billetterie — volumes annuels</span><span class="en">Ticketing — annual volumes</span></h2>
@@ -4200,10 +4256,11 @@ body.en .fr{display:none}
 <div class="row"><div><label><span class="fr">Forfaits / bundles / an</span><span class="en">Bundles / packages / year</span></label><input id="f-bundle-qty" type="number" placeholder="ex : 5500"></div><div><label><span class="fr">Prix moyen bundle ($)</span><span class="en">Average bundle price ($)</span></label><input id="f-bundle-price" type="number" step="0.01" placeholder="ex : 400"></div></div>
 <div class="row"><div><label><span class="fr">Billets par événement (moyenne)</span><span class="en">Tickets per event (average)</span></label><input id="f-tkt-ev" type="number" placeholder="ex : 800"></div><div><label><span class="fr">Nb de commandes / an <span class="opt">(ou billets moyens/commande)</span></span><span class="en">Orders / year <span class="opt">(or avg tickets/order)</span></span></label><input id="f-tkt-orders" type="number" placeholder="ex : 45000"></div></div>
 <div class="row"><div><label><span class="fr">% de billets de faveur / gratuités</span><span class="en">% comp / free tickets</span></label><input id="f-comps-pct" type="number" step="0.1" placeholder="ex : 8"></div><div><label><span class="fr">Saisonnalité — mois d'activité</span><span class="en">Seasonality — active months</span></label><input id="f-saison-mois" placeholder="ex : septembre à avril / Sept to April"></div></div>
+<div class="row"><div><label><span class="fr">Panier moyen billetterie ($)</span><span class="en">Average ticketing basket ($)</span></label><input id="f-basket-tkt" type="number" step="0.01" placeholder="ex : 95"></div><div></div></div>
 </div>
 
 <div class="card"><h2><span class="fr">Produits & paiement</span><span class="en">Products & payment</span></h2>
-<div class="row"><div><label><span class="fr">Plans de paiement / versements pour abonnements?</span><span class="en">Payment plans / installments for memberships?</span></label><select id="f-payplans"><option value="">—</option><option value="oui" class="fr">Oui</option><option value="oui" class="en">Yes</option><option value="non" class="fr">Non</option><option value="non" class="en">No</option></select></div><div><label><span class="fr">Vendez-vous des cartes-cadeaux?</span><span class="en">Do you sell gift cards?</span></label><select id="f-giftcards"><option value="">—</option><option value="oui" class="fr">Oui</option><option value="oui" class="en">Yes</option><option value="non" class="fr">Non</option><option value="non" class="en">No</option></select></div></div>
+<div class="row"><div><label><span class="fr">Calendrier de paiement / paiements multiples (saison, loges)?</span><span class="en">Payment schedule / installments (season tickets, suites)?</span></label><select id="f-payplans"><option value="">—</option><option value="oui" class="fr">Oui</option><option value="oui" class="en">Yes</option><option value="non" class="fr">Non</option><option value="non" class="en">No</option></select></div><div><label><span class="fr">Vendez-vous des cartes-cadeaux?</span><span class="en">Do you sell gift cards?</span></label><select id="f-giftcards"><option value="">—</option><option value="oui" class="fr">Oui</option><option value="oui" class="en">Yes</option><option value="non" class="fr">Non</option><option value="non" class="en">No</option></select></div></div>
 <div class="row"><div><label><span class="fr">Volume cartes-cadeaux / an ($)</span><span class="en">Gift card volume / year ($)</span></label><input id="f-giftcards-vol" type="number" placeholder="ex : 15000"></div><div><label><span class="fr">Autres produits / transactions types</span><span class="en">Other products / transaction types</span></label><input id="f-other-products" placeholder="ex : commandites / sponsorships..."></div></div>
 </div>
 
@@ -4215,13 +4272,14 @@ body.en .fr{display:none}
 
 <div class="card"><h2><span class="fr">Besoins techniques</span><span class="en">Technical needs</span></h2>
 <div class="row"><div><label><span class="fr">Nb de scanneurs</span><span class="en">Number of scanners</span></label><input id="f-scan" type="number" placeholder="ex : 4"></div><div><label><span class="fr">Nb d'imprimantes</span><span class="en">Number of printers</span></label><input id="f-print" type="number" placeholder="ex : 2"></div></div>
-<div class="row"><div><label><span class="fr">Nb de TPV (terminaux)</span><span class="en">Number of POS terminals</span></label><input id="f-tpv" type="number" placeholder="ex : 3"></div><div><label><span class="fr">Format de billets souhaité</span><span class="en">Preferred ticket format</span></label><select id="f-tkttype"><option value="">—</option><option value="non" class="fr">Mobile seulement</option><option value="non" class="en">Mobile only</option><option value="papier" class="fr">Mobile + papier standard</option><option value="papier" class="en">Mobile + standard paper</option><option value="custom" class="fr">Mobile + papier visuel personnalisé</option><option value="custom" class="en">Mobile + custom-design paper</option></select></div></div>
+<div class="row"><div><label><span class="fr">Nb de TPV billetterie</span><span class="en">Ticketing POS terminals</span></label><input id="f-tpv" type="number" placeholder="ex : 3"></div><div><label><span class="fr">Format de billets souhaité</span><span class="en">Preferred ticket format</span></label><select id="f-tkttype"><option value="">—</option><option value="non" class="fr">Mobile seulement</option><option value="non" class="en">Mobile only</option><option value="papier" class="fr">Mobile + papier standard</option><option value="papier" class="en">Mobile + standard paper</option><option value="custom" class="fr">Mobile + papier visuel personnalisé</option><option value="custom" class="en">Mobile + custom-design paper</option></select></div></div>
 <div class="row"><div><label><span class="fr">Nb d'utilisateurs admin / employés</span><span class="en">Admin users / staff count</span></label><input id="f-admin-users" type="number" placeholder="ex : 8"></div><div></div></div>
 </div>
 
 <div class="card"><h2><span class="fr">Boutique souvenir</span><span class="en">Merchandise store</span></h2>
 <div class="row"><div><label><span class="fr">Boutique en ligne intégrée?</span><span class="en">Integrated online store?</span></label><select id="f-boutique"><option value="">—</option><option value="oui" class="fr">Oui</option><option value="oui" class="en">Yes</option><option value="non" class="fr">Non</option><option value="non" class="en">No</option></select></div><div><label><span class="fr">Ventes boutique / an ($)</span><span class="en">Store sales / year ($)</span></label><input id="f-store-vol" type="number" placeholder="ex : 60000"></div></div>
 <div class="row"><div><label><span class="fr">Nb de commandes / an</span><span class="en">Orders / year</span></label><input id="f-store-orders" type="number" placeholder="ex : 1500"></div><div><label><span class="fr">Nb de TPV boutique</span><span class="en">Store POS terminals</span></label><input id="f-store-tpv" type="number" placeholder="ex : 2"></div></div>
+<div class="row"><div><label><span class="fr">Panier moyen boutique ($)</span><span class="en">Average store basket ($)</span></label><input id="f-basket-store" type="number" step="0.01" placeholder="ex : 60"></div><div></div></div>
 </div>
 
 <div class="card"><h2><span class="fr">Frais actuels <span class="opt">(facultatif)</span></span><span class="en">Current fees <span class="opt">(optional)</span></span></h2>
@@ -4229,10 +4287,10 @@ body.en .fr{display:none}
 <div class="row"><div><label><span class="fr">Frais mensuels fixes ($)</span><span class="en">Fixed monthly fees ($)</span></label><input id="f-curfees-monthly" type="number" placeholder="ex : 250"></div><div><label><span class="fr">Autres frais / précisions</span><span class="en">Other fees / details</span></label><input id="f-curfees-notes"></div></div>
 </div>
 
-<div class="card"><h2><span class="fr">Modes de paiement <span class="opt">(facultatif — % approximatifs)</span></span><span class="en">Payment methods <span class="opt">(optional — approximate %)</span></span></h2>
+<div class="card"><h2><span class="fr">Modes de paiement <span class="opt">(% approximatifs — en ligne / en personne requis)</span></span><span class="en">Payment methods <span class="opt">(approximate % — online / in-person required)</span></span></h2>
 <div class="row"><div><label><span class="fr">Crédit Visa/Mastercard (%)</span><span class="en">Visa/Mastercard credit (%)</span></label><input id="f-pay-credit" type="number" placeholder="ex : 70"></div><div><label>Amex (%)</label><input id="f-pay-amex" type="number" placeholder="ex : 5"></div></div>
 <div class="row"><div><label><span class="fr">Débit Interac (%)</span><span class="en">Interac debit (%)</span></label><input id="f-pay-debit" type="number" placeholder="ex : 20"></div><div><label><span class="fr">Autres — chèque, comptant (%)</span><span class="en">Other — cheque, cash (%)</span></label><input id="f-pay-other" type="number" placeholder="ex : 5"></div></div>
-<div class="row"><div><label><span class="fr">Ventes en ligne (%)</span><span class="en">Online sales (%)</span></label><input id="f-pay-online" type="number" placeholder="ex : 80"></div><div><label><span class="fr">En personne — guichet/TPV (%)</span><span class="en">In person — box office/POS (%)</span></label><input id="f-pay-inperson" type="number" placeholder="ex : 20"></div></div>
+<div class="row"><div><label><span class="fr">Ventes en ligne (%) *</span><span class="en">Online sales (%) *</span></label><input id="f-pay-online" type="number" placeholder="ex : 80" required></div><div><label><span class="fr">En personne — guichet/TPV (%) *</span><span class="en">In person — box office/POS (%) *</span></label><input id="f-pay-inperson" type="number" placeholder="ex : 20" required></div></div>
 </div>
 
 <div class="card"><h2>Notes</h2>
@@ -4262,6 +4320,7 @@ function v(id){return document.getElementById(id).value||''}
 function dl(){
   const team=v('f-team');
   if(!team){alert(LANG==='fr'?"Le nom de l'organisation est requis.":"Organization name is required.");return}
+  if(!v('f-pay-online')||!v('f-pay-inperson')){alert(LANG==='fr'?"La répartition en ligne / en personne est requise.":"The online / in-person split is required.");return}
   const data={_type:'stadli_fiche_v1',_date:new Date().toISOString(),_lang:LANG,
     team:team,contactName:v('f-contact'),contactEmail:v('f-email'),
     supplier:v('f-supplier'),expiry:v('f-expiry'),
@@ -4271,6 +4330,7 @@ function dl(){
     tktEv:v('f-tkt-ev'),tktOrders:v('f-tkt-orders'),compsPct:v('f-comps-pct'),saisonMois:v('f-saison-mois'),
     payPlans:v('f-payplans'),giftCards:v('f-giftcards'),giftCardsVol:v('f-giftcards-vol'),otherProducts:v('f-other-products'),
     adminUsers:v('f-admin-users'),
+    basketTkt:v('f-basket-tkt'),basketStore:v('f-basket-store'),devise:v('f-devise')||'CAD',
     emailSubs:v('f-email-subs'),nlYr:v('f-nl-yr'),smsSubs:v('f-sms-subs'),smsCamp:v('f-sms-camp'),
     webMo:v('f-web-mo'),contacts:v('f-contacts'),
     nbScanneurs:v('f-scan'),nbImprimantes:v('f-print'),nbTPV:v('f-tpv'),tkttype:v('f-tkttype'),
@@ -4366,6 +4426,9 @@ function applyImportToDeal(data, deal) {
   mergeIf('giftCardsVol', data.giftCardsVol);
   mergeIf('otherProducts', data.otherProducts);
   mergeIf('adminUsers', data.adminUsers);
+  mergeIf('basketTkt', data.basketTkt);
+  mergeIf('basketStore', data.basketStore);
+  mergeIf('devise', data.devise);
   mergeIf('emailSubs', data.emailSubs);
   mergeIf('nlYr', data.nlYr);
   mergeIf('smsSubs', data.smsSubs);
@@ -4419,7 +4482,13 @@ async function uploadFileToSP(file, prospectName) {
     // Upload to PitchCRM_Files library
     const folderPath = prospectName ? encodeURIComponent(prospectName) : 'Général';
     // Create folder if needed
-    const uploadUrl = `${GRAPH_BASE}/sites/${siteId}/drives/${FILES_LIB_ID}/root:/${folderPath}/${encodeURIComponent(file.name)}:/content`;
+    // Essaie la bibliothèque PitchCRM_Files ; si elle n'existe pas / accès refusé, replie sur la bibliothèque par défaut du site
+    let uploadUrl = `${GRAPH_BASE}/sites/${siteId}/drives/${FILES_LIB_ID}/root:/${folderPath}/${encodeURIComponent(file.name)}:/content`;
+    const probe = await fetch(`${GRAPH_BASE}/sites/${siteId}/drives/${FILES_LIB_ID}`, { headers: { Authorization: 'Bearer ' + token } });
+    if (!probe.ok) {
+      console.warn('Bibliothèque PitchCRM_Files inaccessible (' + probe.status + ') — repli sur la bibliothèque par défaut');
+      uploadUrl = `${GRAPH_BASE}/sites/${siteId}/drive/root:/PitchCRM/${folderPath}/${encodeURIComponent(file.name)}:/content`;
+    }
     const res = await fetch(uploadUrl, {
       method: 'PUT',
       headers: { Authorization: 'Bearer ' + token, 'Content-Type': file.type || 'application/octet-stream' },
