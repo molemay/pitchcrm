@@ -1333,6 +1333,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
   </div>
 </div>
 
+<!-- Modal de destination d'import -->
+<div id="import-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:14px;padding:22px;max-width:440px;width:92%;box-shadow:0 12px 40px rgba(0,0,0,.25)">
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px"><i class="ti ti-file-import"></i> Importer le formulaire</div>
+    <div id="import-modal-info" style="font-size:13px;color:var(--text3);margin-bottom:14px"></div>
+    <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);display:block;margin-bottom:5px">Destination</label>
+    <select id="import-target" style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--text);margin-bottom:16px"></select>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="cancelImport()">Annuler</button>
+      <button class="btn primary" onclick="confirmImport()"><i class="ti ti-check"></i> Importer</button>
+    </div>
+  </div>
+</div>
 <div class="notif" id="notif"></div>
 <div class="move-toast" id="move-toast"></div>
 
@@ -2671,6 +2684,7 @@ const togState = {boutique:null,tkttype:null};
 let currentDealId = null;
 let dragId = null;
 let CALC_TKT_ORDERS = null; // nb de commandes réel depuis la fiche (si connu)
+let PENDING_IMPORT = null;  // données du formulaire en attente de destination
 
 // ---- CONFIG STRIPE (chargée depuis SharePoint — jamais de taux négociés dans le code) ----
 // Repli : tarification publique standard de Stripe (info publique)
@@ -4143,7 +4157,7 @@ function computeBlendedInterchange(payMix) {
 function generateClientForm() {
   const formHtml = `<!DOCTYPE html>
 <html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Stadli — Questionnaire d'information</title>
+<title>Stadli — Questionnaire / Questionnaire</title>
 <style>
 :root{--bg:#f5f4f0;--card:#fff;--text:#1a1a1a;--text2:#666;--border:#e2e0da;--accent:#1a1a1a;--green:#2d7a4f}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -4163,72 +4177,92 @@ textarea{min-height:60px;resize:vertical}
 .btn:hover{opacity:.9}
 .hint{font-size:12px;color:var(--text2);text-align:center;margin-top:10px}
 .ok{display:none;background:#e8f5ee;border:1px solid var(--green);color:var(--green);padding:12px;border-radius:10px;text-align:center;font-weight:600;margin-top:12px}
+.langbar{display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px}
+.langbar button{padding:6px 14px;border:1px solid var(--border);background:#fff;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer}
+.langbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+body.fr .en{display:none}
+body.en .fr{display:none}
 @media(max-width:520px){.row{grid-template-columns:1fr}}
-</style></head><body><div class="wrap">
-<h1>Questionnaire — Stadli</h1>
-<div class="sub">Ces informations nous permettent de préparer une proposition adaptée à votre organisation. Les sections marquées <em>(facultatif)</em> peuvent être laissées vides. Durée : ~5 minutes.</div>
+</style></head><body class="fr"><div class="wrap">
+<div class="langbar"><button id="btn-fr" class="on" onclick="setLang('fr')">Français</button><button id="btn-en" onclick="setLang('en')">English</button></div>
+<h1><span class="fr">Questionnaire — Stadli</span><span class="en">Questionnaire — Stadli</span></h1>
+<div class="sub"><span class="fr">Ces informations nous permettent de préparer une proposition adaptée à votre organisation. Les sections marquées <em>(facultatif)</em> peuvent être laissées vides. Durée : ~5 minutes.</span><span class="en">This information helps us prepare a proposal tailored to your organization. Sections marked <em>(optional)</em> may be left blank. Time: ~5 minutes.</span></div>
 
-<div class="card"><h2>Votre organisation</h2>
-<div class="row"><div><label>Nom de l'équipe / organisation *</label><input id="f-team" required></div><div><label>Personne contact</label><input id="f-contact"></div></div>
-<div class="row"><div><label>Courriel</label><input id="f-email" type="email"></div><div><label>Fournisseur de billetterie actuel</label><input id="f-supplier" placeholder="ex : TIXR, Ticketmaster..."></div></div>
-<div class="row"><div><label>Fin du contrat actuel</label><input id="f-expiry" type="date"></div><div></div></div>
+<div class="card"><h2><span class="fr">Votre organisation</span><span class="en">Your organization</span></h2>
+<div class="row"><div><label><span class="fr">Nom de l'équipe / organisation *</span><span class="en">Team / organization name *</span></label><input id="f-team" required></div><div><label><span class="fr">Personne contact</span><span class="en">Contact person</span></label><input id="f-contact"></div></div>
+<div class="row"><div><label><span class="fr">Courriel</span><span class="en">Email</span></label><input id="f-email" type="email"></div><div><label><span class="fr">Fournisseur de billetterie actuel</span><span class="en">Current ticketing provider</span></label><input id="f-supplier" placeholder="ex : TIXR, Ticketmaster..."></div></div>
+<div class="row"><div><label><span class="fr">Fin du contrat actuel</span><span class="en">Current contract end date</span></label><input id="f-expiry" type="date"></div><div></div></div>
 </div>
 
-<div class="card"><h2>Billetterie — volumes annuels</h2>
-<div class="row"><div><label>Billets unitaires / an</label><input id="f-unit-qty" type="number" placeholder="ex : 300000"></div><div><label>Prix moyen unitaire ($)</label><input id="f-unit-price" type="number" step="0.01" placeholder="ex : 15"></div></div>
-<div class="row"><div><label>Abonnements de saison / an</label><input id="f-saison-qty" type="number" placeholder="ex : 400"></div><div><label>Prix moyen saison ($)</label><input id="f-saison-price" type="number" step="0.01" placeholder="ex : 200"></div></div>
-<div class="row"><div><label>Forfaits / bundles / an</label><input id="f-bundle-qty" type="number" placeholder="ex : 5500"></div><div><label>Prix moyen bundle ($)</label><input id="f-bundle-price" type="number" step="0.01" placeholder="ex : 400"></div></div>
-<div class="row"><div><label>Billets par événement (moyenne)</label><input id="f-tkt-ev" type="number" placeholder="ex : 800"></div><div><label>Nb de commandes / an <span class="opt">(ou billets moyens/commande)</span></label><input id="f-tkt-orders" type="number" placeholder="ex : 45000"></div></div>
-<div class="row"><div><label>% de billets de faveur / gratuités</label><input id="f-comps-pct" type="number" step="0.1" placeholder="ex : 8"></div><div><label>Saisonnalité — mois d'activité</label><input id="f-saison-mois" placeholder="ex : septembre à avril"></div></div>
+<div class="card"><h2><span class="fr">Billetterie — volumes annuels</span><span class="en">Ticketing — annual volumes</span></h2>
+<div class="row"><div><label><span class="fr">Billets unitaires / an</span><span class="en">Single tickets / year</span></label><input id="f-unit-qty" type="number" placeholder="ex : 300000"></div><div><label><span class="fr">Prix moyen unitaire ($)</span><span class="en">Average single ticket price ($)</span></label><input id="f-unit-price" type="number" step="0.01" placeholder="ex : 15"></div></div>
+<div class="row"><div><label><span class="fr">Abonnements de saison / an</span><span class="en">Season memberships / year</span></label><input id="f-saison-qty" type="number" placeholder="ex : 400"></div><div><label><span class="fr">Prix moyen saison ($)</span><span class="en">Average season price ($)</span></label><input id="f-saison-price" type="number" step="0.01" placeholder="ex : 200"></div></div>
+<div class="row"><div><label><span class="fr">Forfaits / bundles / an</span><span class="en">Bundles / packages / year</span></label><input id="f-bundle-qty" type="number" placeholder="ex : 5500"></div><div><label><span class="fr">Prix moyen bundle ($)</span><span class="en">Average bundle price ($)</span></label><input id="f-bundle-price" type="number" step="0.01" placeholder="ex : 400"></div></div>
+<div class="row"><div><label><span class="fr">Billets par événement (moyenne)</span><span class="en">Tickets per event (average)</span></label><input id="f-tkt-ev" type="number" placeholder="ex : 800"></div><div><label><span class="fr">Nb de commandes / an <span class="opt">(ou billets moyens/commande)</span></span><span class="en">Orders / year <span class="opt">(or avg tickets/order)</span></span></label><input id="f-tkt-orders" type="number" placeholder="ex : 45000"></div></div>
+<div class="row"><div><label><span class="fr">% de billets de faveur / gratuités</span><span class="en">% comp / free tickets</span></label><input id="f-comps-pct" type="number" step="0.1" placeholder="ex : 8"></div><div><label><span class="fr">Saisonnalité — mois d'activité</span><span class="en">Seasonality — active months</span></label><input id="f-saison-mois" placeholder="ex : septembre à avril / Sept to April"></div></div>
 </div>
 
-<div class="card"><h2>Produits & paiement</h2>
-<div class="row"><div><label>Plans de paiement / versements pour abonnements?</label><select id="f-payplans"><option value="">— choisir —</option><option value="oui">Oui</option><option value="non">Non</option></select></div><div><label>Vendez-vous des cartes-cadeaux?</label><select id="f-giftcards"><option value="">— choisir —</option><option value="oui">Oui</option><option value="non">Non</option></select></div></div>
-<div class="row"><div><label>Volume cartes-cadeaux / an ($)</label><input id="f-giftcards-vol" type="number" placeholder="ex : 15000"></div><div><label>Autres produits / transactions types</label><input id="f-other-products" placeholder="ex : commandites, produits custom..."></div></div>
+<div class="card"><h2><span class="fr">Produits & paiement</span><span class="en">Products & payment</span></h2>
+<div class="row"><div><label><span class="fr">Plans de paiement / versements pour abonnements?</span><span class="en">Payment plans / installments for memberships?</span></label><select id="f-payplans"><option value="">—</option><option value="oui" class="fr">Oui</option><option value="oui" class="en">Yes</option><option value="non" class="fr">Non</option><option value="non" class="en">No</option></select></div><div><label><span class="fr">Vendez-vous des cartes-cadeaux?</span><span class="en">Do you sell gift cards?</span></label><select id="f-giftcards"><option value="">—</option><option value="oui" class="fr">Oui</option><option value="oui" class="en">Yes</option><option value="non" class="fr">Non</option><option value="non" class="en">No</option></select></div></div>
+<div class="row"><div><label><span class="fr">Volume cartes-cadeaux / an ($)</span><span class="en">Gift card volume / year ($)</span></label><input id="f-giftcards-vol" type="number" placeholder="ex : 15000"></div><div><label><span class="fr">Autres produits / transactions types</span><span class="en">Other products / transaction types</span></label><input id="f-other-products" placeholder="ex : commandites / sponsorships..."></div></div>
 </div>
 
-<div class="card"><h2>Marketing & audience</h2>
-<div class="row"><div><label>Abonnés courriel</label><input id="f-email-subs" type="number" placeholder="ex : 4500"></div><div><label>Infolettres / an</label><input id="f-nl-yr" type="number" placeholder="ex : 24"></div></div>
-<div class="row"><div><label>Abonnés SMS</label><input id="f-sms-subs" type="number" placeholder="ex : 2500"></div><div><label>Campagnes SMS / an</label><input id="f-sms-camp" type="number" placeholder="ex : 12"></div></div>
-<div class="row"><div><label>Trafic web / mois (visites)</label><input id="f-web-mo" type="number" placeholder="ex : 25000"></div><div><label>Contacts CRM total</label><input id="f-contacts" type="number" placeholder="ex : 25000"></div></div>
+<div class="card"><h2><span class="fr">Marketing & audience</span><span class="en">Marketing & audience</span></h2>
+<div class="row"><div><label><span class="fr">Abonnés courriel</span><span class="en">Email subscribers</span></label><input id="f-email-subs" type="number" placeholder="ex : 4500"></div><div><label><span class="fr">Infolettres / an</span><span class="en">Newsletters / year</span></label><input id="f-nl-yr" type="number" placeholder="ex : 24"></div></div>
+<div class="row"><div><label><span class="fr">Abonnés SMS</span><span class="en">SMS subscribers</span></label><input id="f-sms-subs" type="number" placeholder="ex : 2500"></div><div><label><span class="fr">Campagnes SMS / an</span><span class="en">SMS campaigns / year</span></label><input id="f-sms-camp" type="number" placeholder="ex : 12"></div></div>
+<div class="row"><div><label><span class="fr">Trafic web / mois (visites)</span><span class="en">Web traffic / month (visits)</span></label><input id="f-web-mo" type="number" placeholder="ex : 25000"></div><div><label><span class="fr">Contacts CRM total</span><span class="en">Total CRM contacts</span></label><input id="f-contacts" type="number" placeholder="ex : 25000"></div></div>
 </div>
 
-<div class="card"><h2>Besoins techniques</h2>
-<div class="row"><div><label>Nb de scanneurs</label><input id="f-scan" type="number" placeholder="ex : 4"></div><div><label>Nb d'imprimantes</label><input id="f-print" type="number" placeholder="ex : 2"></div></div>
-<div class="row"><div><label>Nb de TPV (terminaux)</label><input id="f-tpv" type="number" placeholder="ex : 3"></div><div><label>Format de billets souhaité</label><select id="f-tkttype"><option value="">— choisir —</option><option value="non">Mobile seulement</option><option value="papier">Mobile + papier standard</option><option value="custom">Mobile + papier avec visuel personnalisé</option></select></div></div>
-<div class="row"><div><label>Nb d'utilisateurs admin / employés</label><input id="f-admin-users" type="number" placeholder="ex : 8"></div><div></div></div>
+<div class="card"><h2><span class="fr">Besoins techniques</span><span class="en">Technical needs</span></h2>
+<div class="row"><div><label><span class="fr">Nb de scanneurs</span><span class="en">Number of scanners</span></label><input id="f-scan" type="number" placeholder="ex : 4"></div><div><label><span class="fr">Nb d'imprimantes</span><span class="en">Number of printers</span></label><input id="f-print" type="number" placeholder="ex : 2"></div></div>
+<div class="row"><div><label><span class="fr">Nb de TPV (terminaux)</span><span class="en">Number of POS terminals</span></label><input id="f-tpv" type="number" placeholder="ex : 3"></div><div><label><span class="fr">Format de billets souhaité</span><span class="en">Preferred ticket format</span></label><select id="f-tkttype"><option value="">—</option><option value="non" class="fr">Mobile seulement</option><option value="non" class="en">Mobile only</option><option value="papier" class="fr">Mobile + papier standard</option><option value="papier" class="en">Mobile + standard paper</option><option value="custom" class="fr">Mobile + papier visuel personnalisé</option><option value="custom" class="en">Mobile + custom-design paper</option></select></div></div>
+<div class="row"><div><label><span class="fr">Nb d'utilisateurs admin / employés</span><span class="en">Admin users / staff count</span></label><input id="f-admin-users" type="number" placeholder="ex : 8"></div><div></div></div>
 </div>
 
-<div class="card"><h2>Boutique souvenir</h2>
-<div class="row"><div><label>Boutique en ligne intégrée?</label><select id="f-boutique"><option value="">— choisir —</option><option value="oui">Oui</option><option value="non">Non</option></select></div><div><label>Ventes boutique / an ($)</label><input id="f-store-vol" type="number" placeholder="ex : 60000"></div></div>
-<div class="row"><div><label>Nb de commandes / an</label><input id="f-store-orders" type="number" placeholder="ex : 1500"></div><div><label>Nb de TPV boutique</label><input id="f-store-tpv" type="number" placeholder="ex : 2"></div></div>
+<div class="card"><h2><span class="fr">Boutique souvenir</span><span class="en">Merchandise store</span></h2>
+<div class="row"><div><label><span class="fr">Boutique en ligne intégrée?</span><span class="en">Integrated online store?</span></label><select id="f-boutique"><option value="">—</option><option value="oui" class="fr">Oui</option><option value="oui" class="en">Yes</option><option value="non" class="fr">Non</option><option value="non" class="en">No</option></select></div><div><label><span class="fr">Ventes boutique / an ($)</span><span class="en">Store sales / year ($)</span></label><input id="f-store-vol" type="number" placeholder="ex : 60000"></div></div>
+<div class="row"><div><label><span class="fr">Nb de commandes / an</span><span class="en">Orders / year</span></label><input id="f-store-orders" type="number" placeholder="ex : 1500"></div><div><label><span class="fr">Nb de TPV boutique</span><span class="en">Store POS terminals</span></label><input id="f-store-tpv" type="number" placeholder="ex : 2"></div></div>
 </div>
 
-<div class="card"><h2>Frais actuels <span class="opt">(facultatif)</span></h2>
-<div class="row"><div><label>% par transaction payé actuellement</label><input id="f-curfees-pct" type="number" step="0.01" placeholder="ex : 3.5"></div><div><label>Frais fixe / billet ($)</label><input id="f-curfees-fixed" type="number" step="0.01" placeholder="ex : 1.50"></div></div>
-<div class="row"><div><label>Frais mensuels fixes ($)</label><input id="f-curfees-monthly" type="number" placeholder="ex : 250"></div><div><label>Autres frais / précisions</label><input id="f-curfees-notes" placeholder="ex : frais de setup, remboursements..."></div></div>
+<div class="card"><h2><span class="fr">Frais actuels <span class="opt">(facultatif)</span></span><span class="en">Current fees <span class="opt">(optional)</span></span></h2>
+<div class="row"><div><label><span class="fr">% par transaction payé actuellement</span><span class="en">Current % per transaction</span></label><input id="f-curfees-pct" type="number" step="0.01" placeholder="ex : 3.5"></div><div><label><span class="fr">Frais fixe / billet ($)</span><span class="en">Fixed fee / ticket ($)</span></label><input id="f-curfees-fixed" type="number" step="0.01" placeholder="ex : 1.50"></div></div>
+<div class="row"><div><label><span class="fr">Frais mensuels fixes ($)</span><span class="en">Fixed monthly fees ($)</span></label><input id="f-curfees-monthly" type="number" placeholder="ex : 250"></div><div><label><span class="fr">Autres frais / précisions</span><span class="en">Other fees / details</span></label><input id="f-curfees-notes"></div></div>
 </div>
 
-<div class="card"><h2>Modes de paiement <span class="opt">(facultatif — % approximatifs)</span></h2>
-<div class="row"><div><label>Crédit Visa/Mastercard (%)</label><input id="f-pay-credit" type="number" placeholder="ex : 70"></div><div><label>Amex (%)</label><input id="f-pay-amex" type="number" placeholder="ex : 5"></div></div>
-<div class="row"><div><label>Débit Interac (%)</label><input id="f-pay-debit" type="number" placeholder="ex : 20"></div><div><label>Autres — chèque, comptant (%)</label><input id="f-pay-other" type="number" placeholder="ex : 5"></div></div>
-<div class="row"><div><label>Ventes en ligne (%)</label><input id="f-pay-online" type="number" placeholder="ex : 80"></div><div><label>En personne — guichet/TPV (%)</label><input id="f-pay-inperson" type="number" placeholder="ex : 20"></div></div>
+<div class="card"><h2><span class="fr">Modes de paiement <span class="opt">(facultatif — % approximatifs)</span></span><span class="en">Payment methods <span class="opt">(optional — approximate %)</span></span></h2>
+<div class="row"><div><label><span class="fr">Crédit Visa/Mastercard (%)</span><span class="en">Visa/Mastercard credit (%)</span></label><input id="f-pay-credit" type="number" placeholder="ex : 70"></div><div><label>Amex (%)</label><input id="f-pay-amex" type="number" placeholder="ex : 5"></div></div>
+<div class="row"><div><label><span class="fr">Débit Interac (%)</span><span class="en">Interac debit (%)</span></label><input id="f-pay-debit" type="number" placeholder="ex : 20"></div><div><label><span class="fr">Autres — chèque, comptant (%)</span><span class="en">Other — cheque, cash (%)</span></label><input id="f-pay-other" type="number" placeholder="ex : 5"></div></div>
+<div class="row"><div><label><span class="fr">Ventes en ligne (%)</span><span class="en">Online sales (%)</span></label><input id="f-pay-online" type="number" placeholder="ex : 80"></div><div><label><span class="fr">En personne — guichet/TPV (%)</span><span class="en">In person — box office/POS (%)</span></label><input id="f-pay-inperson" type="number" placeholder="ex : 20"></div></div>
 </div>
 
 <div class="card"><h2>Notes</h2>
-<div class="row single"><div><label>Autre chose à nous mentionner?</label><textarea id="f-notes" placeholder="Besoins particuliers, contraintes, questions..."></textarea></div></div>
+<div class="row single"><div><label><span class="fr">Autre chose à nous mentionner?</span><span class="en">Anything else we should know?</span></label><textarea id="f-notes"></textarea></div></div>
 </div>
 
-<button class="btn" onclick="dl()">📥 Télécharger mes réponses</button>
-<div class="hint">Un fichier .json sera téléchargé — renvoyez-le simplement à votre contact Stadli par courriel.</div>
-<div class="ok" id="ok-msg">✓ Fichier téléchargé! Envoyez-le à votre contact Stadli.</div>
+<button class="btn" onclick="dl()"><span class="fr">📥 Télécharger mes réponses</span><span class="en">📥 Download my answers</span></button>
+<div class="hint"><span class="fr">Un fichier .json sera téléchargé — renvoyez-le simplement à votre contact Stadli par courriel.</span><span class="en">A .json file will download — simply email it back to your Stadli contact.</span></div>
+<div class="ok" id="ok-msg"><span class="fr">✓ Fichier téléchargé! Envoyez-le à votre contact Stadli.</span><span class="en">✓ File downloaded! Send it to your Stadli contact.</span></div>
 
 <scr` + `ipt>
+let LANG='fr';
+function setLang(l){
+  LANG=l;
+  document.body.className=l;
+  document.documentElement.lang=l;
+  document.getElementById('btn-fr').className=l==='fr'?'on':'';
+  document.getElementById('btn-en').className=l==='en'?'on':'';
+  // Selects : masquer les options de l'autre langue
+  document.querySelectorAll('select option').forEach(o=>{
+    if(o.className==='fr') o.hidden = l!=='fr';
+    if(o.className==='en') o.hidden = l!=='en';
+  });
+}
+setLang('fr');
 function v(id){return document.getElementById(id).value||''}
 function dl(){
   const team=v('f-team');
-  if(!team){alert("Le nom de l'organisation est requis.");return}
-  const data={_type:'stadli_fiche_v1',_date:new Date().toISOString(),
+  if(!team){alert(LANG==='fr'?"Le nom de l'organisation est requis.":"Organization name is required.");return}
+  const data={_type:'stadli_fiche_v1',_date:new Date().toISOString(),_lang:LANG,
     team:team,contactName:v('f-contact'),contactEmail:v('f-email'),
     supplier:v('f-supplier'),expiry:v('f-expiry'),
     tktDetails:{unitaireQty:v('f-unit-qty'),unitairePrice:v('f-unit-price'),unitaireVol:'',unitairePct:'',unitaireFixed:'',
@@ -4271,64 +4305,96 @@ function importClientFile(file) {
       showNotif('⚠ Fichier non reconnu — utilise le formulaire généré par l\'app');
       return;
     }
-    // Cherche une fiche existante (par nom, insensible à la casse)
-    let deal = DEALS.find(d => d.name.trim().toLowerCase() === data.team.trim().toLowerCase());
-    const isNew = !deal;
-    if (isNew) {
-      const numericIds = DEALS.map(d => parseInt(d.id)).filter(n => !isNaN(n));
-      const newId = numericIds.length ? Math.max(...numericIds) + 1 : Date.now();
-      deal = { id: String(newId), name: data.team, col: 'pitch', tags: [], comp: 0, tarif: {} };
-      DEALS.push(deal);
-    }
-    // Fusionne : n'écrase que les champs remplis dans le formulaire
-    const mergeIf = (key, val) => { if (val !== undefined && val !== null && val !== '') deal[key] = val; };
-    mergeIf('supplier', data.supplier);
-    mergeIf('expiry', data.expiry);
-    mergeIf('tktEv', data.tktEv);
-    mergeIf('tktOrders', data.tktOrders);
-    mergeIf('compsPct', data.compsPct);
-    mergeIf('saisonMois', data.saisonMois);
-    mergeIf('payPlans', data.payPlans);
-    mergeIf('giftCards', data.giftCards);
-    mergeIf('giftCardsVol', data.giftCardsVol);
-    mergeIf('otherProducts', data.otherProducts);
-    mergeIf('adminUsers', data.adminUsers);
-    mergeIf('emailSubs', data.emailSubs);
-    mergeIf('nlYr', data.nlYr);
-    mergeIf('smsSubs', data.smsSubs);
-    mergeIf('smsCamp', data.smsCamp);
-    mergeIf('webMo', data.webMo);
-    mergeIf('contacts', data.contacts);
-    mergeIf('nbScanneurs', data.nbScanneurs);
-    mergeIf('nbImprimantes', data.nbImprimantes);
-    mergeIf('nbTPV', data.nbTPV);
-    mergeIf('tkttype', data.tkttype);
-    mergeIf('storeVol', data.storeVol);
-    mergeIf('boutiqueOrders', data.boutiqueOrders);
-    mergeIf('boutiqueTpv', data.boutiqueTpv);
-    if (data.boutique) deal.boutique = data.boutique;
-    // Segmentation : merge seulement si au moins une qty remplie
-    if (data.tktDetails && (data.tktDetails.unitaireQty || data.tktDetails.saisonQty || data.tktDetails.bundleQty)) {
-      deal.tktDetails = Object.assign({}, deal.tktDetails || {}, data.tktDetails);
-    }
-    if (data.currentFees && Object.values(data.currentFees).some(x => x)) deal.currentFees = data.currentFees;
-    if (data.payMix && Object.values(data.payMix).some(x => x)) deal.payMix = data.payMix;
-    // Notes : ajoute contact + notes du formulaire sans écraser ni dupliquer
-    const extraNotes = [];
-    const curNotes = deal.notes || '';
-    if (data.contactName) {
-      const contactLine = 'Contact : ' + data.contactName + (data.contactEmail ? ' (' + data.contactEmail + ')' : '');
-      if (!curNotes.includes(contactLine)) extraNotes.push(contactLine);
-    }
-    if (data.notes && !curNotes.includes(data.notes)) extraNotes.push('Formulaire : ' + data.notes);
-    if (extraNotes.length) deal.notes = (curNotes + '\n' + extraNotes.join('\n')).trim();
-    renderKanban();
-    openDrawer(deal.id);
-    showNotif(isNew
-      ? '✓ Formulaire importé — nouvelle fiche "' + deal.name + '". Vérifie et enregistre.'
-      : '✓ Formulaire importé dans la fiche "' + deal.name + '". Vérifie et enregistre.');
+    PENDING_IMPORT = data;
+    // Construit la liste des destinations : nouvelle fiche + toutes les fiches existantes
+    const sel = document.getElementById('import-target');
+    const match = DEALS.find(d => d.name.trim().toLowerCase() === data.team.trim().toLowerCase());
+    let opts = '<option value="__new__">➕ Créer une nouvelle fiche : « ' + data.team + ' »</option>';
+    DEALS.slice().sort((a,b) => a.name.localeCompare(b.name)).forEach(d => {
+      const selAttr = match && d.id === match.id ? ' selected' : '';
+      opts += '<option value="' + d.id + '"' + selAttr + '>' + d.name + '</option>';
+    });
+    sel.innerHTML = opts;
+    document.getElementById('import-modal-info').textContent =
+      'Formulaire de « ' + data.team + ' »' + (data._date ? ' — rempli le ' + data._date.split('T')[0] : '') +
+      (match ? '. Une fiche du même nom existe déjà (pré-sélectionnée).' : '. Aucune fiche du même nom — choisis une destination.');
+    document.getElementById('import-modal').style.display = 'flex';
   };
   reader.readAsText(file);
+}
+
+function cancelImport() {
+  PENDING_IMPORT = null;
+  document.getElementById('import-modal').style.display = 'none';
+}
+
+function confirmImport() {
+  const data = PENDING_IMPORT;
+  if (!data) return cancelImport();
+  const targetId = document.getElementById('import-target').value;
+  let deal, isNew = false;
+  if (targetId === '__new__') {
+    const numericIds = DEALS.map(d => parseInt(d.id)).filter(n => !isNaN(n));
+    const newId = numericIds.length ? Math.max(...numericIds) + 1 : Date.now();
+    deal = { id: String(newId), name: data.team, col: 'pitch', tags: [], comp: 0, tarif: {} };
+    DEALS.push(deal);
+    isNew = true;
+  } else {
+    deal = DEALS.find(d => String(d.id) === String(targetId));
+    if (!deal) { showNotif('⚠ Fiche introuvable'); return cancelImport(); }
+  }
+  applyImportToDeal(data, deal);
+  cancelImport();
+  renderKanban();
+  openDrawer(deal.id);
+  showNotif(isNew
+    ? '✓ Formulaire importé — nouvelle fiche « ' + deal.name + ' ». Vérifie et enregistre.'
+    : '✓ Formulaire importé dans la fiche « ' + deal.name + ' ». Vérifie et enregistre.');
+}
+
+function applyImportToDeal(data, deal) {
+  // Fusionne : n'écrase que les champs remplis dans le formulaire
+  const mergeIf = (key, val) => { if (val !== undefined && val !== null && val !== '') deal[key] = val; };
+  mergeIf('supplier', data.supplier);
+  mergeIf('expiry', data.expiry);
+  mergeIf('tktEv', data.tktEv);
+  mergeIf('tktOrders', data.tktOrders);
+  mergeIf('compsPct', data.compsPct);
+  mergeIf('saisonMois', data.saisonMois);
+  mergeIf('payPlans', data.payPlans);
+  mergeIf('giftCards', data.giftCards);
+  mergeIf('giftCardsVol', data.giftCardsVol);
+  mergeIf('otherProducts', data.otherProducts);
+  mergeIf('adminUsers', data.adminUsers);
+  mergeIf('emailSubs', data.emailSubs);
+  mergeIf('nlYr', data.nlYr);
+  mergeIf('smsSubs', data.smsSubs);
+  mergeIf('smsCamp', data.smsCamp);
+  mergeIf('webMo', data.webMo);
+  mergeIf('contacts', data.contacts);
+  mergeIf('nbScanneurs', data.nbScanneurs);
+  mergeIf('nbImprimantes', data.nbImprimantes);
+  mergeIf('nbTPV', data.nbTPV);
+  mergeIf('tkttype', data.tkttype);
+  mergeIf('storeVol', data.storeVol);
+  mergeIf('boutiqueOrders', data.boutiqueOrders);
+  mergeIf('boutiqueTpv', data.boutiqueTpv);
+  if (data.boutique) deal.boutique = data.boutique;
+  // Segmentation : merge seulement si au moins une qty remplie
+  if (data.tktDetails && (data.tktDetails.unitaireQty || data.tktDetails.saisonQty || data.tktDetails.bundleQty)) {
+    deal.tktDetails = Object.assign({}, deal.tktDetails || {}, data.tktDetails);
+  }
+  if (data.currentFees && Object.values(data.currentFees).some(x => x)) deal.currentFees = data.currentFees;
+  if (data.payMix && Object.values(data.payMix).some(x => x)) deal.payMix = data.payMix;
+  // Notes : ajoute contact + notes du formulaire sans écraser ni dupliquer
+  const extraNotes = [];
+  const curNotes = deal.notes || '';
+  if (data.contactName) {
+    const contactLine = 'Contact : ' + data.contactName + (data.contactEmail ? ' (' + data.contactEmail + ')' : '');
+    if (!curNotes.includes(contactLine)) extraNotes.push(contactLine);
+  }
+  if (data.notes && !curNotes.includes(data.notes)) extraNotes.push('Formulaire : ' + data.notes);
+  if (extraNotes.length) deal.notes = (curNotes + '\n' + extraNotes.join('\n')).trim();
 }
 
 // ---- AUTO-REFRESH SHAREPOINT (toutes les 2 minutes) ----
